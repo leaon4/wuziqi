@@ -4,12 +4,25 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin');
 
 module.exports = {
     mode: 'development',
-    devtool: false,
+    // devtool: false,
+    // devtool: 'inline-cheap-source-map',
     entry: {
-        index: './src/index.js',
+        index: './src/index.ts',
     },
     devServer: {
         contentBase: './dist',
+    },
+    module: {
+        rules: [
+            {
+                test: /\.tsx?$/,
+                use: 'ts-loader',
+                exclude: /node_modules/,
+            },
+        ],
+    },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js'],
     },
     plugins: [
         new CleanWebpackPlugin(),

@@ -1,17 +1,20 @@
-const canvas = document.getElementById('canvas');
-const position = document.getElementById('position');
+import { add } from "./add";
+console.log(add(3, 5))
+
+const canvas = document.getElementById('canvas') as HTMLCanvasElement;
+const position = document.getElementById('position') as HTMLDivElement;
 canvas.width = 450;
 canvas.height = 450;
 const GRID_WIDTH = 30;
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d') as CanvasRenderingContext2D;
 
 canvas.addEventListener('mousemove', e => {
-    let y = Math.round(e.offsetY / GRID_WIDTH);
-    let x = Math.round(e.offsetX / GRID_WIDTH);
+    let y = ~~(e.offsetY / GRID_WIDTH);
+    let x = ~~(e.offsetX / GRID_WIDTH);
     position.textContent = y + ',' + x;
 });
 
-drawMap()
+drawMap();
 
 function drawMap() {
     ctx.save();
@@ -35,7 +38,7 @@ function drawMap() {
     drawMapPoint(11, 3);
     drawMapPoint(11, 11);
     drawMapPoint(7, 7);
-    function drawMapPoint(y, x) {
+    function drawMapPoint(y: number, x: number) {
         ctx.beginPath();
         ctx.arc(GRID_WIDTH / 2 + x * GRID_WIDTH, GRID_WIDTH / 2 + y * GRID_WIDTH, 5, 0, 2 * Math.PI);
         ctx.fill();
