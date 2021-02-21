@@ -1,3 +1,6 @@
+import { Color } from './definition';
+import Board from './board';
+
 export default class ViewInterface {
     canvas = document.getElementById('canvas') as HTMLCanvasElement;
     position = document.getElementById('position') as HTMLDivElement;
@@ -6,13 +9,14 @@ export default class ViewInterface {
     constructor() {
         this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
     }
-    init() {
+    init(board: Board) {
         const { canvas, position, GRID_WIDTH } = this;
         canvas.width = 450;
         canvas.height = 450;
 
         this.drawMap();
         this.addPositionTip();
+        this.addDownChessEvent(board);
     }
     private drawMap() {
         const { ctx, canvas, GRID_WIDTH } = this;
@@ -43,12 +47,33 @@ export default class ViewInterface {
             ctx.fill();
         }
     }
+    private getMousePoint(e: MouseEvent) {
+        return [~~(e.offsetY / this.GRID_WIDTH), ~~(e.offsetX / this.GRID_WIDTH)]
+    }
     private addPositionTip() {
-        const { canvas, position, GRID_WIDTH } = this;
+        const { canvas, position } = this;
         canvas.addEventListener('mousemove', e => {
-            let y = ~~(e.offsetY / GRID_WIDTH);
-            let x = ~~(e.offsetX / GRID_WIDTH);
+            const [y, x] = this.getMousePoint(e);
             position.textContent = y + ',' + x;
         });
+    }
+    private addDownChessEvent(board: Board) {
+        const { canvas, position } = this;
+        canvas.addEventListener('click', e => {
+            const [y, x] = this.getMousePoint(e);
+            if (board.map[y][x]) {
+                return;
+            }
+            // todo:先就让人下黑棋
+            this.downChess(Color.black, y, x);
+            board.downChess(Color.black, y, x);
+        });
+    }
+    private downChess(color: Color, y: number, x: number) {
+        const { ctx, GRID_WIDTH } = this;
+        ctx.fillStyle = color === Color.black ? 'black' : 'white';
+        ctx.beginPath();
+        ctx.arc(GRID_WIDTH / 2 + x * GRID_WIDTH, GRID_WIDTH / 2 + y * GRID_WIDTH, 10, 0, 2 * Math.PI);
+        ctx.fill();
     }
 }

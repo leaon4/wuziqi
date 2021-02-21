@@ -1,0 +1,1 @@
+export enum Color { black = 1, white };
