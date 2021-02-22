@@ -1,8 +1,8 @@
-import ViewInterface from './modules/interface';
+import GobangInterface from './modules/interface';
 import Board from './modules/board';
+import AI from './modules/AI';
 
 const board = new Board();
-board.init();
-
-const view = new ViewInterface();
-view.init(board);
+const ai = new AI(board);
+const view = new GobangInterface(document.getElementById('canvas') as HTMLCanvasElement,
+    document.getElementById('position') as HTMLDivElement, board, ai);

@@ -1,1 +1,2 @@
-export enum Color { black = 1, white };
+export enum Color { BLACK = 1, WHITE };
+export enum Score { BLACK_LOSE, DRAW, BLACK_WIN };

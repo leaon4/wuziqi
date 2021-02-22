@@ -1,22 +1,27 @@
 import { Color } from './definition';
 import Board from './board';
+import AI from './AI';
 
-export default class ViewInterface {
-    canvas = document.getElementById('canvas') as HTMLCanvasElement;
-    position = document.getElementById('position') as HTMLDivElement;
+export default class GobangInterface {
     private GRID_WIDTH = 30;
     ctx = null as unknown as CanvasRenderingContext2D;
-    constructor() {
+    constructor(
+        public canvas: HTMLCanvasElement,
+        public position: HTMLDivElement,
+        board: Board,
+        ai: AI
+    ) {
         this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
+        this.init(board, ai);
     }
-    init(board: Board) {
-        const { canvas, position, GRID_WIDTH } = this;
+    private init(board: Board, ai: AI) {
+        const { canvas } = this;
         canvas.width = 450;
         canvas.height = 450;
 
         this.drawMap();
         this.addPositionTip();
-        this.addDownChessEvent(board);
+        this.addDownChessEvent(board, ai);
     }
     private drawMap() {
         const { ctx, canvas, GRID_WIDTH } = this;
@@ -57,21 +62,25 @@ export default class ViewInterface {
             position.textContent = y + ',' + x;
         });
     }
-    private addDownChessEvent(board: Board) {
-        const { canvas, position } = this;
+    private addDownChessEvent(board: Board, ai: AI) {
+        const { canvas } = this;
         canvas.addEventListener('click', e => {
             const [y, x] = this.getMousePoint(e);
             if (board.map[y][x]) {
                 return;
             }
             // todo:先就让人下黑棋
-            this.downChess(Color.black, y, x);
-            board.downChess(Color.black, y, x);
+            this.downChess(y, x, Color.BLACK);
+            board.downChess(y, x, Color.BLACK);
+            const res = ai.think(y, x);
+            console.log(res);
+            this.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);
+            board.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);
         });
     }
-    private downChess(color: Color, y: number, x: number) {
+    private downChess(y: number, x: number, color: Color) {
         const { ctx, GRID_WIDTH } = this;
-        ctx.fillStyle = color === Color.black ? 'black' : 'white';
+        ctx.fillStyle = color === Color.BLACK ? 'black' : 'white';
         ctx.beginPath();
         ctx.arc(GRID_WIDTH / 2 + x * GRID_WIDTH, GRID_WIDTH / 2 + y * GRID_WIDTH, 10, 0, 2 * Math.PI);
         ctx.fill();
