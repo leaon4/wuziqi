@@ -6,7 +6,7 @@
  */
 import { Color, Rec } from './definition';
 
-const MAX_CHESS_LENGTH = 2;
+const MAX_CHESS_LENGTH = 1;
 export default class Board {
     map: number[][] = [];
     constructor() {
@@ -21,6 +21,10 @@ export default class Board {
         this.map[y][x] = color;
     }
     restore(y: number, x: number) {
+        if (y === 7 && x === 6) {
+            // debugger
+            let a = y;
+        }
         this.map[y][x] = 0;
     }
     isFull() {
@@ -115,7 +119,12 @@ export default class Board {
     }
     setCandidates(y: number, x: number, obj: Rec): void {
         const { map } = this;
-        delete obj[y + ',' + x];
+        let key = y + ',' + x;
+        if (obj.hasOwnProperty(key)) {
+            delete obj[key];
+        } else {
+            obj[key] = false;
+        }
         for (let i = 1; i <= MAX_CHESS_LENGTH; i++) {
             // h
             setCandidates(y, x + i);
@@ -133,7 +142,9 @@ export default class Board {
         function setCandidates(y: number, x: number) {
             if (y >= 0 && y < 15 && map[y][x] === 0) {
                 let key = y + ',' + x;
-                obj[key] = true;
+                if (!obj[key]){
+                    obj[key] = true;
+                }
             }
         }
     }

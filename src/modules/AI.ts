@@ -9,17 +9,21 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 4;
+    MAX_DEPTH = 5;
     constructor(public board: Board) { }
     think(y: number, x: number) {
         let count = 0;
         const { board, MAX_DEPTH, getScore } = this;
+        board.setCandidates(y, x, candidates);
         const result = whiteThink(0, [y, x], -Infinity, candidates);
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
         return result;
 
         function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec): Pair {
+            if (depth >= 4) {
+                let a = 1;
+            }
             count++
             const result: Pair = {
                 value: Score.DRAW,
@@ -39,11 +43,15 @@ export default class AI {
                 return result;
             }
             result.value = Score.BLACK_LOSE - 1;
-            board.setCandidates(lastMove[0], lastMove[1], obj);
-            for (let i in obj) {
+            let newObj = Object.create(obj);
+            board.setCandidates(lastMove[0], lastMove[1], newObj);
+            for (let i in newObj) {
+                if (newObj[i] === false) {
+                    continue;
+                }
                 let [y, x] = i.split(',').map(Number);
                 board.downChess(y, x, Color.BLACK);
-                let res = whiteThink(depth + 1, [y, x], result.value, { ...obj });
+                let res = whiteThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
                 if (res.value > result.value) {
                     result.value = res.value;
@@ -75,11 +83,15 @@ export default class AI {
                 return result;
             }
             result.value = Score.BLACK_WIN + 1;
-            board.setCandidates(lastMove[0], lastMove[1], obj);
-            for (let i in obj) {
+            let newObj = Object.create(obj);
+            board.setCandidates(lastMove[0], lastMove[1], newObj);
+            for (let i in newObj) {
+                if (newObj[i] === false) {
+                    continue;
+                }
                 let [y, x] = i.split(',').map(Number);
                 board.downChess(y, x, Color.WHITE);
-                let res = blackThink(depth + 1, [y, x], result.value, { ...obj });
+                let res = blackThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
                 if (res.value < result.value) {
                     result.value = res.value;
