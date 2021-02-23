@@ -9,7 +9,7 @@ export default class AI {
     MAX_DEPTH = 4;
     constructor(public board: Board) { }
     think(y: number, x: number) {
-        const { board, MAX_DEPTH } = this;
+        const { board, MAX_DEPTH, getScore } = this;
         return whiteThink(0, [y, x]);
         function blackThink(depth: number, lastMove: number[]): Pair {
             const result: Pair = {
@@ -19,11 +19,14 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            if (board.immediateWin(lastMove[0], lastMove[1], Color.WHITE)) {
+            const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.WHITE);
+            const score = getScore(continuities, Color.WHITE);
+            if (score === Score.BLACK_LOSE) {
                 result.value = Score.BLACK_LOSE;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
+                result.value = score;
                 return result;
             }
             result.value = Score.BLACK_LOSE - 1;
@@ -48,11 +51,14 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            if (board.immediateWin(lastMove[0], lastMove[1], Color.BLACK)) {
+            const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.BLACK);
+            const score = getScore(continuities, Color.BLACK);
+            if (score === Score.BLACK_WIN) {
                 result.value = Score.BLACK_WIN;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
+                result.value = score;
                 return result;
             }
             result.value = Score.BLACK_WIN + 1;
@@ -69,5 +75,12 @@ export default class AI {
             }
             return result;
         }
+    }
+    private getScore(continuities: number[], color: Color): number {
+        let max = Math.max.apply(null, continuities);
+        if (color === Color.BLACK) {
+            return max;
+        }
+        return 5 - max;
     }
 }

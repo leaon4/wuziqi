@@ -1,6 +1,12 @@
+/**
+ *  -  h  horizon
+ *  |  p  portrait
+ *  /  s  slash
+ *  \  b  back slash
+ */
 import { Color } from './definition';
 
-const MAX_CHESS_LENGTH = 2;
+const MAX_CHESS_LENGTH = 1;
 export default class Board {
     map: number[][] = [];
     constructor() {
@@ -21,14 +27,11 @@ export default class Board {
         // todo
         return false;
     }
-    immediateWin(y0: number, x0: number, color: Color) {
+    getContinuities(y0: number, x0: number, color: Color): number[] {
         const { map } = this;
-        return h() >= 5 || p() >= 5 || s() >= 5 || b() >= 5;
+        // return h() >= 5 || p() >= 5 || s() >= 5 || b() >= 5;
+        return [h(), p(), s(), b()];
 
-        // h:horizon
-        // p:portrait
-        // s:slash /
-        // b:back slash \
         function h() {
             let continuities = 1;
             let x = x0;
