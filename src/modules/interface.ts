@@ -72,7 +72,9 @@ export default class GobangInterface {
             // todo:先就让人下黑棋
             this.downChess(y, x, Color.BLACK);
             board.downChess(y, x, Color.BLACK);
+            console.time('ai');
             const res = ai.think(y, x);
+            console.timeEnd('ai');
             console.log(res);
             this.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);
             board.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);

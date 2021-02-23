@@ -10,8 +10,8 @@ export default class AI {
     constructor(public board: Board) { }
     think(y: number, x: number) {
         const { board, MAX_DEPTH, getScore } = this;
-        return whiteThink(0, [y, x]);
-        function blackThink(depth: number, lastMove: number[]): Pair {
+        return whiteThink(0, [y, x], -Infinity);
+        function blackThink(depth: number, lastMove: number[], beta: number): Pair {
             const result: Pair = {
                 value: Score.DRAW,
                 bestMove: []
@@ -31,10 +31,10 @@ export default class AI {
             }
             result.value = Score.BLACK_LOSE - 1;
             let cadidates = board.getCandidates();
-            for (let i = 0, len = cadidates.length; i < len; i++) {
+            for (let i = 0, len = cadidates.length; i < len && result.value < beta; i++) {
                 let [y, x] = cadidates[i];
                 board.downChess(y, x, Color.BLACK);
-                let res = whiteThink(depth + 1, [y, x]);
+                let res = whiteThink(depth + 1, [y, x], result.value);
                 board.restore(y, x);
                 if (res.value > result.value) {
                     result.value = res.value;
@@ -43,7 +43,7 @@ export default class AI {
             }
             return result;
         }
-        function whiteThink(depth: number, lastMove: number[]): Pair {
+        function whiteThink(depth: number, lastMove: number[], alpha: number): Pair {
             const result: Pair = {
                 value: Score.DRAW,
                 bestMove: []
@@ -63,10 +63,10 @@ export default class AI {
             }
             result.value = Score.BLACK_WIN + 1;
             let cadidates = board.getCandidates();
-            for (let i = 0, len = cadidates.length; i < len; i++) {
+            for (let i = 0, len = cadidates.length; i < len && result.value > alpha; i++) {
                 let [y, x] = cadidates[i];
                 board.downChess(y, x, Color.WHITE);
-                let res = blackThink(depth + 1, [y, x]);
+                let res = blackThink(depth + 1, [y, x], result.value);
                 board.restore(y, x);
                 if (res.value < result.value) {
                     result.value = res.value;
