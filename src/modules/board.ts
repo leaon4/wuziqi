@@ -4,9 +4,9 @@
  *  /  s  slash
  *  \  b  back slash
  */
-import { Color } from './definition';
+import { Color, Rec } from './definition';
 
-const MAX_CHESS_LENGTH = 1;
+const MAX_CHESS_LENGTH = 2;
 export default class Board {
     map: number[][] = [];
     constructor() {
@@ -110,6 +110,30 @@ export default class Board {
             if (y >= 0 && y < 15 && map[y][x] === 0) {
                 let key = y + ',' + x;
                 candidates[key] = true;
+            }
+        }
+    }
+    setCandidates(y: number, x: number, obj: Rec): void {
+        const { map } = this;
+        delete obj[y + ',' + x];
+        for (let i = 1; i <= MAX_CHESS_LENGTH; i++) {
+            // h
+            setCandidates(y, x + i);
+            setCandidates(y, x - i);
+            // p
+            setCandidates(y + i, x);
+            setCandidates(y - i, x);
+            // s
+            setCandidates(y - i, x + i);
+            setCandidates(y + i, x - i);
+            // b
+            setCandidates(y + i, x + i);
+            setCandidates(y - i, x - i);
+        }
+        function setCandidates(y: number, x: number) {
+            if (y >= 0 && y < 15 && map[y][x] === 0) {
+                let key = y + ',' + x;
+                obj[key] = true;
             }
         }
     }
