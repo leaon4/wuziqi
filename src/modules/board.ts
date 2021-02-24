@@ -122,7 +122,7 @@ export default class Board {
         let key = y + ',' + x;
         if (obj.hasOwnProperty(key)) {
             delete obj[key];
-        } else {
+        } else if (obj[key]) {
             obj[key] = false;
         }
         for (let i = 1; i <= MAX_CHESS_LENGTH; i++) {
@@ -142,7 +142,7 @@ export default class Board {
         function setCandidates(y: number, x: number) {
             if (y >= 0 && y < 15 && map[y][x] === 0) {
                 let key = y + ',' + x;
-                if (!obj[key]){
+                if (!obj[key]) {
                     obj[key] = true;
                 }
             }

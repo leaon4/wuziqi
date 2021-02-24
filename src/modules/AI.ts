@@ -3,13 +3,14 @@ import { Color, Score, Rec } from "./definition";
 
 export type Pair = {
     value: Score,
-    bestMove: number[]
+    bestMove: number[],
+    depth: number
 }
 
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 5;
+    MAX_DEPTH = 4;
     constructor(public board: Board) { }
     think(y: number, x: number) {
         let count = 0;
@@ -25,9 +26,10 @@ export default class AI {
                 let a = 1;
             }
             count++
-            const result: Pair = {
+            let result: Pair = {
                 value: Score.DRAW,
-                bestMove: []
+                bestMove: [],
+                depth
             };
             if (board.isFull()) {
                 return result;
@@ -53,8 +55,8 @@ export default class AI {
                 board.downChess(y, x, Color.BLACK);
                 let res = whiteThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
-                if (res.value > result.value) {
-                    result.value = res.value;
+                if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
+                    result = res;
                     result.bestMove = [y, x];
                     if (result.value >= beta) {
                         break;
@@ -65,9 +67,10 @@ export default class AI {
         }
         function whiteThink(depth: number, lastMove: number[], alpha: number, obj: Rec): Pair {
             count++
-            const result: Pair = {
+            let result: Pair = {
                 value: Score.DRAW,
-                bestMove: []
+                bestMove: [],
+                depth
             };
             if (board.isFull()) {
                 return result;
@@ -93,8 +96,8 @@ export default class AI {
                 board.downChess(y, x, Color.WHITE);
                 let res = blackThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
-                if (res.value < result.value) {
-                    result.value = res.value;
+                if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
+                    result = res;
                     result.bestMove = [y, x];
                     if (result.value <= alpha) {
                         break;
