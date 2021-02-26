@@ -1,5 +1,6 @@
 import Board from "./board";
 import { Color, Score, Rec } from "./definition";
+import ScoreComputer from "./score";
 
 export type Pair = {
     value: Score,
@@ -11,7 +12,7 @@ const candidates = {};
 
 export default class AI {
     MAX_DEPTH = 4;
-    constructor(public board: Board) { }
+    constructor(public board: Board, public score: ScoreComputer) { }
     think(y: number, x: number) {
         let count = 0;
         const { board, MAX_DEPTH, getScore } = this;
