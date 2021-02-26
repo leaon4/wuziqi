@@ -11,11 +11,11 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 4;
-    constructor(public board: Board, public score: ScoreComputer) { }
+    MAX_DEPTH = 2;
+    constructor(public board: Board, public scoreComputer: ScoreComputer) { }
     think(y: number, x: number) {
         let count = 0;
-        const { board, MAX_DEPTH, getScore } = this;
+        const { board, MAX_DEPTH, scoreComputer, getScore } = this;
         board.setCandidates(y, x, candidates);
         const result = whiteThink(0, [y, x], -Infinity, candidates);
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
@@ -36,13 +36,24 @@ export default class AI {
                 return result;
             }
             const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.WHITE);
-            const score = getScore(continuities, Color.WHITE);
-            if (score === Score.BLACK_LOSE) {
+            // const score = getScore(continuities, Color.WHITE);
+            // if (score === Score.BLACK_LOSE) {
+            //     result.value = Score.BLACK_LOSE;
+            //     return result;
+            // }
+            if (continuities.some(item => item >= 5)) {
                 result.value = Score.BLACK_LOSE;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
-                result.value = score;
+                // result.value = score;
+                let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
+                let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
+                if (whiteMax > blackMax) {
+                    result.value = -whiteMax.value;
+                } else {
+                    result.value = blackMax.value;
+                }
                 return result;
             }
             result.value = Score.BLACK_LOSE - 1;
@@ -77,13 +88,24 @@ export default class AI {
                 return result;
             }
             const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.BLACK);
-            const score = getScore(continuities, Color.BLACK);
-            if (score === Score.BLACK_WIN) {
+            // const score = getScore(continuities, Color.BLACK);
+            // if (score === Score.BLACK_WIN) {
+            //     result.value = Score.BLACK_WIN;
+            //     return result;
+            // }
+            if (continuities.some(item => item >= 5)) {
                 result.value = Score.BLACK_WIN;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
-                result.value = score;
+                // result.value = score;
+                let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
+                let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
+                if (blackMax > whiteMax) {
+                    result.value = blackMax.value;
+                } else {
+                    result.value = -whiteMax.value;
+                }
                 return result;
             }
             result.value = Score.BLACK_WIN + 1;
