@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 2;
+    MAX_DEPTH = 3;
     constructor(public board: Board, public scoreComputer: ScoreComputer) { }
     think(y: number, x: number) {
         let count = 0;
@@ -49,7 +49,7 @@ export default class AI {
                 // result.value = score;
                 let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
                 let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
-                if (whiteMax > blackMax) {
+                if (whiteMax.value > blackMax.value) {
                     result.value = -whiteMax.value;
                 } else {
                     result.value = blackMax.value;
@@ -101,7 +101,7 @@ export default class AI {
                 // result.value = score;
                 let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
                 let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
-                if (blackMax > whiteMax) {
+                if (blackMax.value > whiteMax.value) {
                     result.value = blackMax.value;
                 } else {
                     result.value = -whiteMax.value;
