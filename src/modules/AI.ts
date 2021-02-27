@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 2;
+    MAX_DEPTH = 3;
     constructor(public board: Board, public scoreComputer: ScoreComputer) {
         if (board.hasInitialMap) {
             this.initCandidates(board);
@@ -40,20 +40,16 @@ export default class AI {
                 return result;
             }
             const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.WHITE);
-            // const score = getScore(continuities, Color.WHITE);
-            // if (score === Score.BLACK_LOSE) {
-            //     result.value = Score.BLACK_LOSE;
-            //     return result;
-            // }
             if (continuities.some(item => item >= 5)) {
                 result.value = Score.BLACK_LOSE;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
-                // result.value = score;
                 let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
                 let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
-                if (whiteMax.value > blackMax.value) {
+                if (blackMax.value === 5 && blackMax.type === 'DeadFour') {
+                    result.value = Score.BLACK_WIN;
+                } else if (whiteMax.value > blackMax.value) {
                     result.value = -whiteMax.value;
                 } else {
                     result.value = blackMax.value;
@@ -92,20 +88,16 @@ export default class AI {
                 return result;
             }
             const continuities = board.getContinuities(lastMove[0], lastMove[1], Color.BLACK);
-            // const score = getScore(continuities, Color.BLACK);
-            // if (score === Score.BLACK_WIN) {
-            //     result.value = Score.BLACK_WIN;
-            //     return result;
-            // }
             if (continuities.some(item => item >= 5)) {
                 result.value = Score.BLACK_WIN;
                 return result;
             }
             if (depth >= MAX_DEPTH) {
-                // result.value = score;
                 let blackMax = scoreComputer.computeTotalScore(Color.BLACK);
                 let whiteMax = scoreComputer.computeTotalScore(Color.WHITE);
-                if (blackMax.value > whiteMax.value) {
+                if (whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
+                    result.value = Score.BLACK_LOSE;
+                } else if (blackMax.value > whiteMax.value) {
                     result.value = blackMax.value;
                 } else {
                     result.value = -whiteMax.value;

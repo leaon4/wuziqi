@@ -2,7 +2,7 @@ import Board from "./board";
 import { Color } from "./definition";
 
 export default class ScoreComputer {
-    scoreMap: Record<string, number> = {};
+    scoreMap: Record<string, { value: number, type?: string }> = {};
     constructor(public borad: Board) {
         this.generateScoreMap();
     }
@@ -37,11 +37,13 @@ export default class ScoreComputer {
                 return;
             }
             if (/11111/.test(code)) {
-                scoreMap[code] = 7;
+                scoreMap[code] = {
+                    value: 7,
+                };
             } else if (/011110/.test(code)) {
-                scoreMap[code] = 6;
+                scoreMap[code] = { value: 6 };
             } else if (/11110/.test(code) || /01111/.test(code)) {
-                scoreMap[code] = 5;
+                scoreMap[code] = { value: 5, type: 'DeadFour' };
             } else {
                 let log = {
                     value: 0,
@@ -50,11 +52,12 @@ export default class ScoreComputer {
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0') {
                         let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                        let value = scoreMap[newCode];
-                        if (value === undefined) {
+                        let score = scoreMap[newCode];
+                        if (score === undefined) {
                             let revCode = newCode.split('').reverse().join('');
-                            value = scoreMap[revCode];
+                            score = scoreMap[revCode];
                         }
+                        let value = score && score.value;
                         if (value) {
                             if (value > log.value) {
                                 log.value = value;
@@ -66,12 +69,19 @@ export default class ScoreComputer {
                     }
                 }
                 if (log.pos > 1) {
-                    scoreMap[code] = log.value - 1;
+                    scoreMap[code] = {
+                        value: log.value - 1
+                    };
                 } else {
-                    if (log.value === 6) {
-                        scoreMap[code] = log.value - 1;
+                    if (log.value === 7) {
+                        scoreMap[code] = {
+                            value: 5,
+                            type: 'DeadFour'
+                        };
+                    } else if (log.value === 6) {
+                        scoreMap[code] = { value: log.value - 1 };
                     } else {
-                        scoreMap[code] = log.value - 2;
+                        scoreMap[code] = { value: log.value - 2 };
                     }
                 }
             }
@@ -81,8 +91,9 @@ export default class ScoreComputer {
         const { scoreMap } = this;
         const { map } = this.borad;
         let max = {
-            value: -1,
-            code: ''
+            value: 0,
+            code: '',
+            type: ''
         };
         let code: string;
         // h -
@@ -146,14 +157,16 @@ export default class ScoreComputer {
             if (code.length < 5) {
                 return;
             }
-            let value = scoreMap[code];
-            if (typeof value !== 'number') {
+            let score = scoreMap[code];
+            if (!score) {
                 let revCode = code.split('').reverse().join('');
-                value = scoreMap[revCode];
+                score = scoreMap[revCode];
             }
+            let value = score && score.value;
             if (value > max.value) {
-                max.value = value;
+                max.value = score.value;
                 max.code = code;
+                max.type = score.type as string;
             }
         }
     }
