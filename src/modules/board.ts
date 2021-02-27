@@ -9,11 +9,17 @@ import { Color, Rec } from './definition';
 const MAX_CHESS_LENGTH = 2;
 export default class Board {
     map: number[][] = [];
-    constructor() {
-        for (let y = 0; y < 15; y++) {
-            this.map[y] = [];
-            for (let x = 0; x < 15; x++) {
-                this.map[y][x] = 0;
+    hasInitialMap = false;
+    constructor(map?: number[][]) {
+        if (map) {
+            this.hasInitialMap = true;
+            this.map = map;
+        } else {
+            for (let y = 0; y < 15; y++) {
+                this.map[y] = [];
+                for (let x = 0; x < 15; x++) {
+                    this.map[y][x] = 0;
+                }
             }
         }
     }

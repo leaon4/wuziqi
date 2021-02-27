@@ -11,8 +11,12 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 3;
-    constructor(public board: Board, public scoreComputer: ScoreComputer) { }
+    MAX_DEPTH = 2;
+    constructor(public board: Board, public scoreComputer: ScoreComputer) {
+        if (board.hasInitialMap) {
+            this.initCandidates(board);
+        }
+    }
     think(y: number, x: number) {
         let count = 0;
         const { board, MAX_DEPTH, scoreComputer, getScore } = this;
@@ -136,5 +140,15 @@ export default class AI {
             return max;
         }
         return 5 - max;
+    }
+    private initCandidates(board: Board) {
+        const { map } = board;
+        for (let y = 0; y < 15; y++) {
+            for (let x = 0; x < 15; x++) {
+                if (map[y][x]) {
+                    board.setCandidates(y, x, candidates);
+                }
+            }
+        }
     }
 }

@@ -22,6 +22,19 @@ export default class GobangInterface {
         this.drawMap();
         this.addPositionTip();
         this.addDownChessEvent(board, ai);
+        if (board.hasInitialMap) {
+            this.downInitialChess(board);
+        }
+    }
+    private downInitialChess(board: Board) {
+        const { map } = board;
+        for (let y = 0; y < 15; y++) {
+            for (let x = 0; x < 15; x++) {
+                if (map[y][x]) {
+                    this.downChess(y, x, map[y][x]);
+                }
+            }
+        }
     }
     private drawMap() {
         const { ctx, canvas, GRID_WIDTH } = this;
