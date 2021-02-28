@@ -1,6 +1,7 @@
 import { Color } from './definition';
 import Board from './board';
 import AI from './AI';
+import ScoreComputer from './score';
 
 export default class GobangInterface {
     private GRID_WIDTH = 30;
@@ -9,19 +10,20 @@ export default class GobangInterface {
         public canvas: HTMLCanvasElement,
         public position: HTMLDivElement,
         board: Board,
-        ai: AI
+        ai: AI,
+        score: ScoreComputer
     ) {
         this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
-        this.init(board, ai);
+        this.init(board, ai, score);
     }
-    private init(board: Board, ai: AI) {
+    private init(board: Board, ai: AI, score: ScoreComputer) {
         const { canvas } = this;
         canvas.width = 450;
         canvas.height = 450;
 
         this.drawMap();
         this.addPositionTip();
-        this.addDownChessEvent(board, ai);
+        this.addDownChessEvent(board, ai, score);
         if (board.hasInitialMap) {
             this.downInitialChess(board);
         }
@@ -75,7 +77,7 @@ export default class GobangInterface {
             position.textContent = y + ',' + x;
         });
     }
-    private addDownChessEvent(board: Board, ai: AI) {
+    private addDownChessEvent(board: Board, ai: AI, score: ScoreComputer) {
         const { canvas } = this;
         canvas.addEventListener('click', e => {
             const [y, x] = this.getMousePoint(e);
@@ -85,12 +87,15 @@ export default class GobangInterface {
             // todo:先就让人下黑棋
             this.downChess(y, x, Color.BLACK);
             board.downChess(y, x, Color.BLACK);
+            score.downChess(y, x, Color.BLACK);
             console.time('ai');
             const res = ai.think(y, x);
             console.timeEnd('ai');
             console.log(res);
-            this.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);
-            board.downChess(res.bestMove[0], res.bestMove[1], Color.WHITE);
+            const [y1, x1] = res.bestMove;
+            this.downChess(y1, x1, Color.WHITE);
+            board.downChess(y1, x1, Color.WHITE);
+            score.downChess(y1, x1, Color.WHITE);
         });
     }
     private downChess(y: number, x: number, color: Color) {

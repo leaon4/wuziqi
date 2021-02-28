@@ -23,5 +23,10 @@ import ScoreComputer from './modules/score';
 const board = new Board();
 const score = (window as any).score = new ScoreComputer(board);
 const ai = new AI(board, score);
-const view = new GobangInterface(document.getElementById('canvas') as HTMLCanvasElement,
-    document.getElementById('position') as HTMLDivElement, board, ai);
+const view = new GobangInterface(
+    document.getElementById('canvas') as HTMLCanvasElement,
+    document.getElementById('position') as HTMLDivElement,
+    board,
+    ai,
+    score
+);

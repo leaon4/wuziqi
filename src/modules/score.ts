@@ -5,7 +5,7 @@ type BookkeepingItem = {
     code: string;
     value: number;
     type?: string;
-    candidates: number[][];
+    candidates?: number[][];
     startPoint?: number[];
 };
 
@@ -35,7 +35,9 @@ export default class ScoreComputer {
         b: {}
     };
     constructor(public borad: Board) {
+        console.time('generateScoreMap')
         this.generateScoreMap();
+        console.timeEnd('generateScoreMap')
     }
     private generateScoreMap() {
         const { scoreMap } = this;
@@ -252,47 +254,156 @@ export default class ScoreComputer {
             }
         }
     }
-    downChess(y0: number, x0: number, color: Color) {
+    private logBookkeeping(y0: number, x0: number, color: Color) {
         const { scoreMap, black, white } = this;
         const { map } = this.borad;
-        let max = {
-            value: 0,
-            code: '',
-            type: ''
-        };
-        let code = '';
+        const that = this;
+        const bookkeeping = color === Color.BLACK ? black : white;
+        let y: number, x: number;
+
         // h -
-        for (let x = 0; x < 15; x++) {
-            addCode(y0, x);
+        let code = '';
+        for (x = 0; x < 15; x++) {
+            addCode(y0, x, 'h', bookkeeping);
         }
         if (code) {
-            createItem(code);
+            createItem(code, y0, x, 'h', bookkeeping);
         }
-        function addCode(y: number, x: number) {
+
+        // p |
+        code = '';
+        for (y = 0; y < 15; y++) {
+            addCode(y, x0, 'p', bookkeeping);
+        }
+        if (code) {
+            createItem(code, y, x0, 'p', bookkeeping);
+        }
+
+        // s /
+        code = '';
+        for (
+            x = Math.min(x0 + y0, 14), y = Math.max(x0 + y0 - 14, 0);
+            x >= 0 && y <= 14;
+            x--, y++
+        ) {
+            addCode(y, x, 's', bookkeeping);
+        }
+        if (code) {
+            createItem(code, y, x, 's', bookkeeping);
+        }
+
+        // b \
+        code = '';
+        for (
+            x = Math.max(0, x0 - y0), y = Math.max(0, y0 - x0);
+            x <= 14 && y <= 14;
+            x++, y++
+        ) {
+            addCode(y, x, 'b', bookkeeping);
+        }
+        if (code) {
+            createItem(code, y, x, 'b', bookkeeping);
+        }
+
+        function addCode(y: number, x: number, dir: string, obj: Bookkeeping) {
             if (map[y][x] === 0) {
                 code += '0';
             } else if (map[y][x] === color) {
                 code += '1';
             } else if (code) {
-                createItem(code);
+                createItem(code, y, x, dir, obj);
                 code = '';
             }
         }
-        function createItem(code: string) {
+        function createItem(code: string, yEnd: number, xEnd: number, dir: string, obj: Bookkeeping) {
             if (code.length < 5) {
                 return;
             }
-            let score = scoreMap[code];
-            if (!score) {
-                let revCode = code.split('').reverse().join('');
-                score = scoreMap[revCode];
+            if (!code.includes('1')) {
+                return;
             }
+            const score = that.getScore(code);
+            const isRev = score !== scoreMap[code];
             const item: BookkeepingItem = {
                 code,
                 value: score.value,
-                type: score.type,
-                candidates: []
             };
+            if (score.type) {
+                item.type = score.type;
+            }
+
+            let key = -1;
+            let book: typeof black.h;
+            switch (dir) {
+                case 'h':
+                    if (score.value === 5) {
+                        item.candidates = score.candidates!.map(pos => {
+                            if (isRev) {
+                                pos = code.length - 1 - pos;
+                            }
+                            return [yEnd, xEnd - code.length + pos];
+                        });
+                    }
+                    key = yEnd;
+                    book = obj.h;
+                    break;
+                case 'p':
+                    if (score.value === 5) {
+                        item.candidates = score.candidates!.map(pos => {
+                            if (isRev) {
+                                pos = code.length - 1 - pos;
+                            }
+                            return [yEnd - code.length + pos, xEnd];
+                        });
+                    }
+                    key = xEnd;
+                    book = obj.p;
+                    break;
+                case 's':
+                    if (score.value === 5) {
+                        item.candidates = score.candidates!.map(pos => {
+                            if (isRev) {
+                                pos = code.length - 1 - pos;
+                            }
+                            return [yEnd - code.length + pos, xEnd + code.length - pos];
+                        });
+                    }
+                    key = xEnd + code.length + yEnd - code.length;
+                    book = obj.s;
+                    break;
+                default: // case: 'b'
+                    if (score.value === 5) {
+                        item.candidates = score.candidates!.map(pos => {
+                            if (isRev) {
+                                pos = code.length - 1 - pos;
+                            }
+                            return [yEnd - code.length + pos, xEnd - code.length + pos];
+                        });
+                    }
+                    key = 14 - (yEnd - code.length) + (xEnd - code.length);
+                    book = obj.b;
+            }
+            (book[key] || (book[key] = [])).push(item);
         }
+    }
+    downChess(y: number, x: number, color: Color) {
+        this.clearScore(y, x);
+        this.logBookkeeping(y, x, Color.BLACK);
+        this.logBookkeeping(y, x, Color.WHITE);
+    }
+    private clearScore(y: number, x: number) {
+        const { black, white } = this;
+        let hKey = y,
+            pKey = x,
+            sKey = x + y,
+            bKey = 14 - y + x
+        delete black.h[hKey];
+        delete black.p[pKey];
+        delete black.s[sKey];
+        delete black.b[bKey];
+        delete white.h[hKey];
+        delete white.p[pKey];
+        delete white.s[sKey];
+        delete white.b[bKey];
     }
 }
