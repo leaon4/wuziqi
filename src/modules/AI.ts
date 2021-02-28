@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 3;
+    MAX_DEPTH = 5;
     constructor(public board: Board, public scoreComputer: ScoreComputer) {
         if (board.hasInitialMap) {
             this.initCandidates(board);
@@ -63,11 +63,13 @@ export default class AI {
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.keyCandidates![0];
                 return result;
-            } else if (whiteMax.value === 5){
+            } else if (whiteMax.value === 5) {
                 // 白子活三，黑没有更优的选择，则应该优先堵
-                // todo
+                killPoints = Object.keys(scoreComputer.white.killPoints)
+                    .map(item => item.split(',').map(Number));
             }
-            if (depth >= MAX_DEPTH) {
+
+            if (!killPoints.length && depth >= MAX_DEPTH) {
                 if (whiteMax.value > blackMax.value) {
                     result.value = -whiteMax.value;
                 } else {
@@ -75,31 +77,57 @@ export default class AI {
                 }
                 return result;
             }
+
             result.value = Score.BLACK_LOSE - 1;
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
-            for (let i in newObj) {
-                if (newObj[i] === false) {
-                    continue;
-                }
-                let [y, x] = i.split(',').map(Number);
-                board.downChess(y, x, Color.BLACK);
-                let isWin = scoreComputer.downChessFake(y, x, Color.BLACK);
-                if (isWin) {
+            if (killPoints.length) {
+                for (let p of killPoints) {
+                    let [y, x] = p;
+                    board.downChess(y, x, Color.BLACK);
+                    let isWin = scoreComputer.downChessFake(y, x, Color.BLACK);
+                    if (isWin) {
+                        board.restore(y, x);
+                        scoreComputer.restore();
+                        result.value = Score.BLACK_WIN;
+                        result.bestMove = [y, x];
+                        return result;
+                    }
+                    let res = whiteThink(depth + 1, [y, x], result.value, newObj);
                     board.restore(y, x);
                     scoreComputer.restore();
-                    result.value = Score.BLACK_WIN;
-                    result.bestMove = [y, x];
-                    return result;
+                    if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
+                        result = res;
+                        result.bestMove = [y, x];
+                        if (result.value >= beta) {
+                            break;
+                        }
+                    }
                 }
-                let res = whiteThink(depth + 1, [y, x], result.value, newObj);
-                board.restore(y, x);
-                scoreComputer.restore();
-                if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
-                    result = res;
-                    result.bestMove = [y, x];
-                    if (result.value >= beta) {
-                        break;
+            } else {
+                for (let i in newObj) {
+                    if (newObj[i] === false) {
+                        continue;
+                    }
+                    let [y, x] = i.split(',').map(Number);
+                    board.downChess(y, x, Color.BLACK);
+                    let isWin = scoreComputer.downChessFake(y, x, Color.BLACK);
+                    if (isWin) {
+                        board.restore(y, x);
+                        scoreComputer.restore();
+                        result.value = Score.BLACK_WIN;
+                        result.bestMove = [y, x];
+                        return result;
+                    }
+                    let res = whiteThink(depth + 1, [y, x], result.value, newObj);
+                    board.restore(y, x);
+                    scoreComputer.restore();
+                    if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
+                        result = res;
+                        result.bestMove = [y, x];
+                        if (result.value >= beta) {
+                            break;
+                        }
                     }
                 }
             }
@@ -137,16 +165,12 @@ export default class AI {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.keyCandidates![0];
                 return result;
-            } else if (blackMax.value === 5){
-                // todo
+            } else if (blackMax.value === 5) {
+                killPoints = Object.keys(scoreComputer.black.killPoints)
+                    .map(item => item.split(',').map(Number));
             }
-            
-            if (whiteMax.value === 6 ||
-                whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
-                result.value = Score.BLACK_LOSE;
-                return result;
-            }
-            if (depth >= MAX_DEPTH) {
+
+            if (!killPoints.length && depth >= MAX_DEPTH) {
                 if (blackMax.value > whiteMax.value) {
                     result.value = blackMax.value;
                 } else {
@@ -157,28 +181,54 @@ export default class AI {
             result.value = Score.BLACK_WIN + 1;
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
-            for (let i in newObj) {
-                if (newObj[i] === false) {
-                    continue;
-                }
-                let [y, x] = i.split(',').map(Number);
-                board.downChess(y, x, Color.WHITE);
-                let isWin = scoreComputer.downChessFake(y, x, Color.WHITE);
-                if (isWin) {
+
+            if (killPoints.length) {
+                for (let p of killPoints) {
+                    let [y, x] = p;
+                    board.downChess(y, x, Color.WHITE);
+                    let isWin = scoreComputer.downChessFake(y, x, Color.WHITE);
+                    if (isWin) {
+                        board.restore(y, x);
+                        scoreComputer.restore();
+                        result.value = Score.BLACK_LOSE;
+                        result.bestMove = [y, x];
+                        return result;
+                    }
+                    let res = blackThink(depth + 1, [y, x], result.value, newObj);
                     board.restore(y, x);
                     scoreComputer.restore();
-                    result.value = Score.BLACK_LOSE;
-                    result.bestMove = [y, x];
-                    return result;
+                    if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
+                        result = res;
+                        result.bestMove = [y, x];
+                        if (result.value <= alpha) {
+                            break;
+                        }
+                    }
                 }
-                let res = blackThink(depth + 1, [y, x], result.value, newObj);
-                board.restore(y, x);
-                scoreComputer.restore();
-                if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
-                    result = res;
-                    result.bestMove = [y, x];
-                    if (result.value <= alpha) {
-                        break;
+            } else {
+                for (let i in newObj) {
+                    if (newObj[i] === false) {
+                        continue;
+                    }
+                    let [y, x] = i.split(',').map(Number);
+                    board.downChess(y, x, Color.WHITE);
+                    let isWin = scoreComputer.downChessFake(y, x, Color.WHITE);
+                    if (isWin) {
+                        board.restore(y, x);
+                        scoreComputer.restore();
+                        result.value = Score.BLACK_LOSE;
+                        result.bestMove = [y, x];
+                        return result;
+                    }
+                    let res = blackThink(depth + 1, [y, x], result.value, newObj);
+                    board.restore(y, x);
+                    scoreComputer.restore();
+                    if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
+                        result = res;
+                        result.bestMove = [y, x];
+                        if (result.value <= alpha) {
+                            break;
+                        }
                     }
                 }
             }
