@@ -6,7 +6,8 @@ type BookkeepingItem = {
     value: number;
     type?: string;
     candidates?: number[][];
-    startPoint?: number[];
+    // startPoint?: number[];
+    keyCandidates?: number[][];
 };
 
 type BookkeepingTable = Record<string, BookkeepingItem[] | null>;
@@ -23,7 +24,8 @@ export default class ScoreComputer {
     scoreMap: Record<string, {
         value: number,
         type?: string,
-        candidates?: number[]
+        candidates?: number[],
+        keyCandidates?: number[]
     }> = {};
     black: Bookkeeping = {
         h: {},
@@ -151,6 +153,7 @@ export default class ScoreComputer {
                         }
                     }
                 } else {
+                    const keyCandidates = [];
                     for (let i = 0; i < code.length; i++) {
                         if (code[i] === '0') {
                             const left = this.getScore(code.slice(0, i));
@@ -158,8 +161,17 @@ export default class ScoreComputer {
                             if (left.value < score.value && right.value < score.value) {
                                 candidates.push(i);
                             }
+                            const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                            const newScore = this.getScore(newCode);
+                            if (newScore.value === 6) {
+                                keyCandidates.push(i);
+                            }
                         }
                     }
+                    if (!keyCandidates.length) {
+                        console.error('error')
+                    }
+                    score.keyCandidates = keyCandidates;
                 }
                 score.candidates = candidates;
             }
@@ -351,6 +363,14 @@ export default class ScoreComputer {
                             }
                             return [yEnd, xEnd - code.length + pos];
                         });
+                        if (score.keyCandidates) {
+                            item.keyCandidates = score.keyCandidates.map(pos => {
+                                if (isRev) {
+                                    pos = code.length - 1 - pos;
+                                }
+                                return [yEnd, xEnd - code.length + pos];
+                            });
+                        }
                     }
                     key = yEnd;
                     book = obj.h;
@@ -363,6 +383,14 @@ export default class ScoreComputer {
                             }
                             return [yEnd - code.length + pos, xEnd];
                         });
+                        if (score.keyCandidates) {
+                            item.keyCandidates = score.keyCandidates.map(pos => {
+                                if (isRev) {
+                                    pos = code.length - 1 - pos;
+                                }
+                                return [yEnd - code.length + pos, xEnd];
+                            });
+                        }
                     }
                     key = xEnd;
                     book = obj.p;
@@ -375,6 +403,14 @@ export default class ScoreComputer {
                             }
                             return [yEnd - code.length + pos, xEnd + code.length - pos];
                         });
+                        if (score.keyCandidates) {
+                            item.keyCandidates = score.keyCandidates.map(pos => {
+                                if (isRev) {
+                                    pos = code.length - 1 - pos;
+                                }
+                                return [yEnd - code.length + pos, xEnd + code.length - pos];
+                            });
+                        }
                     }
                     key = xEnd + code.length + yEnd - code.length;
                     book = obj.s;
@@ -387,6 +423,14 @@ export default class ScoreComputer {
                             }
                             return [yEnd - code.length + pos, xEnd - code.length + pos];
                         });
+                        if (score.keyCandidates) {
+                            item.keyCandidates = score.keyCandidates.map(pos => {
+                                if (isRev) {
+                                    pos = code.length - 1 - pos;
+                                }
+                                return [yEnd - code.length + pos, xEnd - code.length + pos];
+                            });
+                        }
                     }
                     key = 14 - (yEnd - code.length) + (xEnd - code.length);
                     book = obj.b;
@@ -541,9 +585,12 @@ export default class ScoreComputer {
                 }
             }
         }
-        // let keys = Object.keys(book.killPoints);
-        // Object.keys(book.killPoints).forEach(key=>{
-
-        // })
+    }
+    findKeyPointOfAliveThree(item: BookkeepingItem) {
+        //assert
+        if (item.value !== 5 || item.type) {
+            console.error('findKeyPointOfAliveThree');
+            return;
+        }
     }
 }

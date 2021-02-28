@@ -6,7 +6,7 @@
  */
 import { Color, Rec } from './definition';
 
-const MAX_CHESS_LENGTH = 1;
+const MAX_CHESS_LENGTH = 2;
 export default class Board {
     map: number[][] = [];
     hasInitialMap = false;

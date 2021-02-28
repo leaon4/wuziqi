@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 4;
+    MAX_DEPTH = 3;
     constructor(public board: Board, public scoreComputer: ScoreComputer) {
         if (board.hasInitialMap) {
             this.initCandidates(board);
@@ -44,7 +44,28 @@ export default class AI {
             if (blackMax.value === 6
                 || blackMax.value === 5 && blackMax.type === 'DeadFour') {
                 result.value = Score.BLACK_WIN;
+                // todo 活四bestMove
+                result.bestMove = blackMax.candidates![0];
                 return result;
+            }
+            if (whiteMax.value === 6) {
+                // 白子有活四，黑子无四连，则必输
+                result.value = Score.BLACK_LOSE;
+                // todo 活四bestMove
+                return result;
+            }
+            let killPoints: number[][] = [];
+            if (whiteMax.type === 'DeadFour') {
+                // 白子有死四，这时只能先阻挡
+                killPoints = whiteMax.candidates!;
+            } else if (blackMax.value === 5) {
+                // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
+                result.value = Score.BLACK_WIN;
+                result.bestMove = blackMax.keyCandidates![0];
+                return result;
+            } else if (whiteMax.value === 5){
+                // 白子活三，黑没有更优的选择，则应该优先堵
+                // todo
             }
             if (depth >= MAX_DEPTH) {
                 if (whiteMax.value > blackMax.value) {
@@ -96,6 +117,30 @@ export default class AI {
             }
             let blackMax = scoreComputer.getMaxScore(Color.BLACK);
             let whiteMax = scoreComputer.getMaxScore(Color.WHITE);
+
+            if (whiteMax.value === 6
+                || whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
+                result.value = Score.BLACK_LOSE;
+                // todo 活四bestMove
+                result.bestMove = whiteMax.candidates![0];
+                return result;
+            }
+            if (blackMax.value === 6) {
+                result.value = Score.BLACK_WIN;
+                // todo 活四bestMove
+                return result;
+            }
+            let killPoints: number[][] = [];
+            if (blackMax.type === 'DeadFour') {
+                killPoints = blackMax.candidates!;
+            } else if (whiteMax.value === 5) {
+                result.value = Score.BLACK_LOSE;
+                result.bestMove = whiteMax.keyCandidates![0];
+                return result;
+            } else if (blackMax.value === 5){
+                // todo
+            }
+            
             if (whiteMax.value === 6 ||
                 whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
                 result.value = Score.BLACK_LOSE;
