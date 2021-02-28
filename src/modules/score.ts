@@ -16,7 +16,7 @@ type Bookkeeping = {
     p: BookkeepingTable;
     s: BookkeepingTable;
     b: BookkeepingTable;
-    killPoints: Record<string, number>;
+    killPoints: Record<string, BookkeepingItem[]>;
 }
 
 export default class ScoreComputer {
@@ -395,7 +395,7 @@ export default class ScoreComputer {
             if (score.value === 5) {
                 item.candidates!.forEach(p => {
                     let key = p[0] + ',' + p[1];
-                    obj.killPoints[key] = (obj.killPoints[key] || 0) + 1;
+                    (obj.killPoints[key] || (obj.killPoints[key] = [])).push(item);
                 });
             } else if (score.value === 7) {
                 isWin = true;
@@ -463,9 +463,14 @@ export default class ScoreComputer {
                         item.candidates.forEach(p => {
                             let key = p[0] + ',' + p[1];
                             if (killPoints[key]) {
-                                killPoints[key]--;
-                                if (killPoints[key] === 0) {
-                                    delete killPoints[key];
+                                let idx = killPoints[key].findIndex(item2 => {
+                                    return item2.code === item.code;
+                                });
+                                if (idx > -1) {
+                                    killPoints[key].splice(idx, 1);
+                                    if (!killPoints[key].length) {
+                                        delete killPoints[key]
+                                    }
                                 }
                             }
                         })
@@ -497,14 +502,15 @@ export default class ScoreComputer {
                     if (item.candidates) {
                         item.candidates.forEach(p => {
                             let key = p[0] + ',' + p[1];
-                            if (killPoints.hasOwnProperty(key)) {
-                                killPoints[key]--;
-                                if (killPoints[key] < 0) {
-                                    console.warn('killPints[key]=0', killPoints, key);
-                                    killPoints[key] = 0;
-                                }
-                            } else {
-                                killPoints[key] = 0;
+                            if (!killPoints.hasOwnProperty(key)) {
+                                // 从原型上复制
+                                killPoints[key] = killPoints[key].slice();
+                            }
+                            let idx = killPoints[key].findIndex(item2 => {
+                                return item2.code === item.code;
+                            });
+                            if (idx > -1) {
+                                killPoints[key].splice(idx, 1);
                             }
                         })
                     }
@@ -512,5 +518,32 @@ export default class ScoreComputer {
             }
             table[key] = null;
         }
+    }
+    getMaxScore(color: Color) {
+        let book = color === Color.BLACK ? this.black : this.white;
+        let max: BookkeepingItem = {
+            value: -1,
+            code: ''
+        }
+        findMax(book.h);
+        findMax(book.p);
+        findMax(book.s);
+        findMax(book.b);
+        return max;
+        function findMax(table: BookkeepingTable) {
+            for (let i in table) {
+                if (table[i]) {
+                    table[i]!.forEach(item => {
+                        if (item.value > max.value) {
+                            max = item;
+                        }
+                    });
+                }
+            }
+        }
+        // let keys = Object.keys(book.killPoints);
+        // Object.keys(book.killPoints).forEach(key=>{
+
+        // })
     }
 }
