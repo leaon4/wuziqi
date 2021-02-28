@@ -266,6 +266,7 @@ export default class ScoreComputer {
         const that = this;
         const bookkeeping = color === Color.BLACK ? black : white;
         let y: number, x: number;
+        let isWin = false;
 
         // h -
         let code = '';
@@ -311,6 +312,7 @@ export default class ScoreComputer {
             createItem(code, y, x, 'b', bookkeeping);
         }
 
+        return isWin;
         function addCode(y: number, x: number, dir: string, obj: Bookkeeping) {
             if (map[y][x] === 0) {
                 code += '0';
@@ -395,6 +397,8 @@ export default class ScoreComputer {
                     let key = p[0] + ',' + p[1];
                     obj.killPoints[key] = (obj.killPoints[key] || 0) + 1;
                 });
+            } else if (score.value === 7) {
+                isWin = true;
             }
         }
     }
@@ -403,7 +407,7 @@ export default class ScoreComputer {
         this.logBookkeeping(y, x, Color.BLACK);
         this.logBookkeeping(y, x, Color.WHITE);
     }
-    downChessFake(y: number, x: number) {
+    downChessFake(y: number, x: number, color: Color): boolean {
         this.black.h = Object.create(this.black.h);
         this.black.p = Object.create(this.black.p);
         this.black.s = Object.create(this.black.s);
@@ -417,8 +421,11 @@ export default class ScoreComputer {
         this.white.killPoints = Object.create(this.white.killPoints);
 
         this.clearScoreFake(y, x);
-        this.logBookkeeping(y, x, Color.BLACK);
-        this.logBookkeeping(y, x, Color.WHITE);
+        let res = [
+            this.logBookkeeping(y, x, Color.BLACK),
+            this.logBookkeeping(y, x, Color.WHITE)
+        ];
+        return color === Color.BLACK ? res[0] : res[1];
     }
     restore() {
         this.black.h = Object.getPrototypeOf(this.black.h);
@@ -426,7 +433,7 @@ export default class ScoreComputer {
         this.black.s = Object.getPrototypeOf(this.black.s);
         this.black.b = Object.getPrototypeOf(this.black.b);
         this.black.killPoints = Object.getPrototypeOf(this.black.killPoints);
-        
+
         this.white.h = Object.getPrototypeOf(this.white.h);
         this.white.p = Object.getPrototypeOf(this.white.p);
         this.white.s = Object.getPrototypeOf(this.white.s);
