@@ -9,11 +9,14 @@ type BookkeepingItem = {
     startPoint?: number[];
 };
 
+type BookkeepingTable = Record<string, BookkeepingItem[] | null>;
+
 type Bookkeeping = {
-    h: Record<string, BookkeepingItem[]>;
-    p: Record<string, BookkeepingItem[]>;
-    s: Record<string, BookkeepingItem[]>;
-    b: Record<string, BookkeepingItem[]>;
+    h: BookkeepingTable;
+    p: BookkeepingTable;
+    s: BookkeepingTable;
+    b: BookkeepingTable;
+    killPoints: Record<string, number>;
 }
 
 export default class ScoreComputer {
@@ -26,18 +29,21 @@ export default class ScoreComputer {
         h: {},
         p: {},
         s: {},
-        b: {}
+        b: {},
+        killPoints: {}
     };
     white: Bookkeeping = {
         h: {},
         p: {},
         s: {},
-        b: {}
+        b: {},
+        killPoints: {}
     };
     constructor(public borad: Board) {
         console.time('generateScoreMap')
         this.generateScoreMap();
         console.timeEnd('generateScoreMap')
+        // todo board.hasInitialMap
     }
     private generateScoreMap() {
         const { scoreMap } = this;
@@ -333,7 +339,7 @@ export default class ScoreComputer {
             }
 
             let key = -1;
-            let book: typeof black.h;
+            let book: BookkeepingTable;
             switch (dir) {
                 case 'h':
                     if (score.value === 5) {
@@ -384,26 +390,120 @@ export default class ScoreComputer {
                     book = obj.b;
             }
             (book[key] || (book[key] = [])).push(item);
+            if (score.value === 5) {
+                item.candidates!.forEach(p => {
+                    let key = p[0] + ',' + p[1];
+                    obj.killPoints[key] = (obj.killPoints[key] || 0) + 1;
+                });
+            }
         }
     }
-    downChess(y: number, x: number, color: Color) {
+    downChess(y: number, x: number) {
         this.clearScore(y, x);
         this.logBookkeeping(y, x, Color.BLACK);
         this.logBookkeeping(y, x, Color.WHITE);
+    }
+    downChessFake(y: number, x: number) {
+        this.black.h = Object.create(this.black.h);
+        this.black.p = Object.create(this.black.p);
+        this.black.s = Object.create(this.black.s);
+        this.black.b = Object.create(this.black.b);
+        this.black.killPoints = Object.create(this.black.killPoints);
+
+        this.white.h = Object.create(this.white.h);
+        this.white.p = Object.create(this.white.p);
+        this.white.s = Object.create(this.white.s);
+        this.white.b = Object.create(this.white.b);
+        this.white.killPoints = Object.create(this.white.killPoints);
+
+        this.clearScoreFake(y, x);
+        this.logBookkeeping(y, x, Color.BLACK);
+        this.logBookkeeping(y, x, Color.WHITE);
+    }
+    restore() {
+        this.black.h = Object.getPrototypeOf(this.black.h);
+        this.black.p = Object.getPrototypeOf(this.black.p);
+        this.black.s = Object.getPrototypeOf(this.black.s);
+        this.black.b = Object.getPrototypeOf(this.black.b);
+        this.black.killPoints = Object.getPrototypeOf(this.black.killPoints);
+        
+        this.white.h = Object.getPrototypeOf(this.white.h);
+        this.white.p = Object.getPrototypeOf(this.white.p);
+        this.white.s = Object.getPrototypeOf(this.white.s);
+        this.white.b = Object.getPrototypeOf(this.white.b);
+        this.white.killPoints = Object.getPrototypeOf(this.white.killPoints);
     }
     private clearScore(y: number, x: number) {
         const { black, white } = this;
         let hKey = y,
             pKey = x,
             sKey = x + y,
-            bKey = 14 - y + x
-        delete black.h[hKey];
-        delete black.p[pKey];
-        delete black.s[sKey];
-        delete black.b[bKey];
-        delete white.h[hKey];
-        delete white.p[pKey];
-        delete white.s[sKey];
-        delete white.b[bKey];
+            bKey = 14 - y + x;
+        deleteKey(black.h, hKey, black.killPoints);
+        deleteKey(black.p, pKey, black.killPoints);
+        deleteKey(black.s, sKey, black.killPoints);
+        deleteKey(black.b, bKey, black.killPoints);
+
+        deleteKey(white.h, hKey, white.killPoints);
+        deleteKey(white.p, pKey, white.killPoints);
+        deleteKey(white.s, sKey, white.killPoints);
+        deleteKey(white.b, bKey, white.killPoints);
+        function deleteKey(table: BookkeepingTable, key: number, killPoints: typeof black.killPoints) {
+            if (table[key]) {
+                table[key]!.forEach(item => {
+                    // 有candidates说明是活三死四
+                    if (item.candidates) {
+                        item.candidates.forEach(p => {
+                            let key = p[0] + ',' + p[1];
+                            if (killPoints[key]) {
+                                killPoints[key]--;
+                                if (killPoints[key] === 0) {
+                                    delete killPoints[key];
+                                }
+                            }
+                        })
+                    }
+                })
+            }
+            delete table[key];
+        }
+    }
+    private clearScoreFake(y: number, x: number) {
+        const { black, white } = this;
+        let hKey = y,
+            pKey = x,
+            sKey = x + y,
+            bKey = 14 - y + x;
+        deleteKey(black.h, hKey, black.killPoints);
+        deleteKey(black.p, pKey, black.killPoints);
+        deleteKey(black.s, sKey, black.killPoints);
+        deleteKey(black.b, bKey, black.killPoints);
+
+        deleteKey(white.h, hKey, white.killPoints);
+        deleteKey(white.p, pKey, white.killPoints);
+        deleteKey(white.s, sKey, white.killPoints);
+        deleteKey(white.b, bKey, white.killPoints);
+        function deleteKey(table: BookkeepingTable, key: number, killPoints: typeof black.killPoints) {
+            if (table[key]) {
+                table[key]!.forEach(item => {
+                    // 有candidates说明是活三死四
+                    if (item.candidates) {
+                        item.candidates.forEach(p => {
+                            let key = p[0] + ',' + p[1];
+                            if (killPoints.hasOwnProperty(key)) {
+                                killPoints[key]--;
+                                if (killPoints[key] < 0) {
+                                    console.warn('killPints[key]=0', killPoints, key);
+                                    killPoints[key] = 0;
+                                }
+                            } else {
+                                killPoints[key] = 0;
+                            }
+                        })
+                    }
+                })
+            }
+            table[key] = null;
+        }
     }
 }

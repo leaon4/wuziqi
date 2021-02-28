@@ -65,8 +65,10 @@ export default class AI {
                 }
                 let [y, x] = i.split(',').map(Number);
                 board.downChess(y, x, Color.BLACK);
+                scoreComputer.downChessFake(y, x);
                 let res = whiteThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
+                scoreComputer.restore();
                 if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
                     result.bestMove = [y, x];
@@ -113,8 +115,10 @@ export default class AI {
                 }
                 let [y, x] = i.split(',').map(Number);
                 board.downChess(y, x, Color.WHITE);
+                scoreComputer.downChessFake(y, x);
                 let res = blackThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
+                scoreComputer.restore();
                 if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
                     result.bestMove = [y, x];
