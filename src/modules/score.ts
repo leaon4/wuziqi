@@ -1,8 +1,39 @@
 import Board from "./board";
 import { Color } from "./definition";
 
+type BookkeepingItem = {
+    code: string;
+    value: number;
+    type?: string;
+    candidates: number[][];
+    startPoint?: number[];
+};
+
+type Bookkeeping = {
+    h: Record<string, BookkeepingItem[]>;
+    p: Record<string, BookkeepingItem[]>;
+    s: Record<string, BookkeepingItem[]>;
+    b: Record<string, BookkeepingItem[]>;
+}
+
 export default class ScoreComputer {
-    scoreMap: Record<string, { value: number, type?: string }> = {};
+    scoreMap: Record<string, {
+        value: number,
+        type?: string,
+        candidates?: number[]
+    }> = {};
+    black: Bookkeeping = {
+        h: {},
+        p: {},
+        s: {},
+        b: {}
+    };
+    white: Bookkeeping = {
+        h: {},
+        p: {},
+        s: {},
+        b: {}
+    };
     constructor(public borad: Board) {
         this.generateScoreMap();
     }
@@ -15,9 +46,15 @@ export default class ScoreComputer {
                 permutation(0, j);
             }
         }
+        this.addCandidatesToScoreMap();
         // console.log((window as any).scoreMap = scoreMap);
         // console.log(Object.keys(scoreMap).length);
         // console.log(new Set(Object.values(scoreMap)));
+        // for (let code in scoreMap) {
+        //     if (scoreMap[code].value === 5) {
+        //         console.log(code, scoreMap[code].candidates);
+        //     }
+        // }
         function permutation(start: number, end: number) {
             if (end === arr.length) {
                 logScore(arr);
@@ -74,11 +111,14 @@ export default class ScoreComputer {
                     };
                 } else {
                     if (log.value === 7) {
+                        // 死四
                         scoreMap[code] = {
                             value: 5,
                             type: 'DeadFour'
                         };
                     } else if (log.value === 6) {
+                        // 某些子，如'010110'，尽管没有两处子下，构成活四，
+                        // 但只要有一处能构成，威胁等级依然等同于活三，是必防的
                         scoreMap[code] = { value: log.value - 1 };
                     } else {
                         scoreMap[code] = { value: log.value - 2 };
@@ -86,6 +126,48 @@ export default class ScoreComputer {
                 }
             }
         }
+    }
+    private addCandidatesToScoreMap() {
+        const { scoreMap } = this;
+        for (let code in scoreMap) {
+            const score = scoreMap[code];
+            if (score.value === 5) {
+                const candidates = [];
+                if (score.type === 'DeadFour') {
+                    for (let i = 0; i < code.length; i++) {
+                        if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
+                            const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                            if (/11111/.test(newCode)) {
+                                candidates.push(i);
+                            }
+                        }
+                    }
+                } else {
+                    for (let i = 0; i < code.length; i++) {
+                        if (code[i] === '0') {
+                            const left = this.getScore(code.slice(0, i));
+                            const right = this.getScore(code.slice(i + 1));
+                            if (left.value < score.value && right.value < score.value) {
+                                candidates.push(i);
+                            }
+                        }
+                    }
+                }
+                score.candidates = candidates;
+            }
+        }
+    }
+    private getScore(code: string) {
+        if (code.length < 5) {
+            return {
+                value: 0
+            };
+        }
+        if (this.scoreMap[code]) {
+            return this.scoreMap[code];
+        }
+        let revCode = code.split('').reverse().join('');
+        return this.scoreMap[revCode];
     }
     computeTotalScore(color: Color) {
         const { scoreMap } = this;
@@ -168,6 +250,49 @@ export default class ScoreComputer {
                 max.code = code;
                 max.type = score.type as string;
             }
+        }
+    }
+    downChess(y0: number, x0: number, color: Color) {
+        const { scoreMap, black, white } = this;
+        const { map } = this.borad;
+        let max = {
+            value: 0,
+            code: '',
+            type: ''
+        };
+        let code = '';
+        // h -
+        for (let x = 0; x < 15; x++) {
+            addCode(y0, x);
+        }
+        if (code) {
+            createItem(code);
+        }
+        function addCode(y: number, x: number) {
+            if (map[y][x] === 0) {
+                code += '0';
+            } else if (map[y][x] === color) {
+                code += '1';
+            } else if (code) {
+                createItem(code);
+                code = '';
+            }
+        }
+        function createItem(code: string) {
+            if (code.length < 5) {
+                return;
+            }
+            let score = scoreMap[code];
+            if (!score) {
+                let revCode = code.split('').reverse().join('');
+                score = scoreMap[revCode];
+            }
+            const item: BookkeepingItem = {
+                code,
+                value: score.value,
+                type: score.type,
+                candidates: []
+            };
         }
     }
 }

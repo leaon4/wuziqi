@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 3;
+    MAX_DEPTH = 2;
     constructor(public board: Board, public scoreComputer: ScoreComputer) {
         if (board.hasInitialMap) {
             this.initCandidates(board);
