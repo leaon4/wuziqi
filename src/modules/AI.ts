@@ -8,13 +8,20 @@ export type Pair = {
     depth: number
 }
 
-const candidates = {};
+let candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 3;
-    constructor(public board: Board, public scoreComputer: ScoreComputer) {
-        if (board.hasInitialMap) {
-            this.initCandidates(board);
+    constructor(
+        public board: Board,
+        public scoreComputer: ScoreComputer,
+        readonly MAX_DEPTH = 1
+    ) {
+        this.reset();
+    }
+    reset() {
+        candidates = {};
+        if (this.board.hasInitialMap) {
+            this.initCandidates(this.board);
         }
     }
     think(y: number, x: number) {

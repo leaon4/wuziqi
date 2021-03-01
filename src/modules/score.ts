@@ -51,6 +51,26 @@ export default class ScoreComputer {
             this.computeTotalScore(Color.WHITE);
         }
     }
+    reset() {
+        this.black = {
+            h: {},
+            p: {},
+            s: {},
+            b: {},
+            killPoints: {}
+        };
+        this.white = {
+            h: {},
+            p: {},
+            s: {},
+            b: {},
+            killPoints: {}
+        };
+        if (this.borad.hasInitialMap) {
+            this.computeTotalScore(Color.BLACK);
+            this.computeTotalScore(Color.WHITE);
+        }
+    }
     private generateScoreMap() {
         const { scoreMap } = this;
         let arr: number[];

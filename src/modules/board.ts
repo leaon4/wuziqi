@@ -6,15 +6,19 @@
  */
 import { Color, Rec } from './definition';
 
-const MAX_CHESS_LENGTH = 2;
 export default class Board {
     map: number[][] = [];
     hasInitialMap = false;
-    constructor(map?: number[][]) {
+    constructor(map?: number[][], readonly MAX_CHESS_LENGTH = 1) {
+        this.reset(map);
+    }
+    reset(map?: number[][]) {
         if (map) {
             this.hasInitialMap = true;
             this.map = map;
         } else {
+            this.hasInitialMap = false;
+            this.map = [];
             for (let y = 0; y < 15; y++) {
                 this.map[y] = [];
                 for (let x = 0; x < 15; x++) {
@@ -97,7 +101,7 @@ export default class Board {
         for (let y = 0; y < 15; y++) {
             for (let x = 0; x < 15; x++) {
                 if (map[y][x]) {
-                    for (let i = 1; i <= MAX_CHESS_LENGTH; i++) {
+                    for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
                         // h
                         setCandidates(y, x + i);
                         setCandidates(y, x - i);
@@ -131,7 +135,7 @@ export default class Board {
         } else if (obj[key]) {
             obj[key] = false;
         }
-        for (let i = 1; i <= MAX_CHESS_LENGTH; i++) {
+        for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
             // h
             setCandidates(y, x + i);
             setCandidates(y, x - i);

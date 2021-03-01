@@ -105,4 +105,7 @@ export default class GobangInterface {
         ctx.arc(GRID_WIDTH / 2 + x * GRID_WIDTH, GRID_WIDTH / 2 + y * GRID_WIDTH, 10, 0, 2 * Math.PI);
         ctx.fill();
     }
+    reset(){
+        // todo
+    }
 }
