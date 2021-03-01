@@ -165,14 +165,24 @@ export default class ScoreComputer {
         const { scoreMap } = this;
         for (let code in scoreMap) {
             const score = scoreMap[code];
-            if (score.value === 5) {
-                const candidates = [];
+            const candidates = [];
+            if (score.value === 6) {
+                for (let i = 0; i < code.length; i++) {
+                    if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
+                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                        if (/11111/.test(newCode)) {
+                            candidates.push(i);
+                        }
+                    }
+                }
+            } else if (score.value === 5) {
                 if (score.type === 'DeadFour') {
                     for (let i = 0; i < code.length; i++) {
                         if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
                             const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
                             if (/11111/.test(newCode)) {
                                 candidates.push(i);
+                                break;
                             }
                         }
                     }
@@ -197,6 +207,8 @@ export default class ScoreComputer {
                     }
                     score.keyCandidates = keyCandidates;
                 }
+            }
+            if (candidates.length) {
                 score.candidates = candidates;
             }
         }
@@ -361,7 +373,7 @@ export default class ScoreComputer {
         let book: BookkeepingTable;
         switch (dir) {
             case 'h':
-                if (score.value === 5) {
+                if (score.value === 5 || score.value === 6) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -381,7 +393,7 @@ export default class ScoreComputer {
                 book = obj.h;
                 break;
             case 'p':
-                if (score.value === 5) {
+                if (score.value === 5 || score.value === 6) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -401,7 +413,7 @@ export default class ScoreComputer {
                 book = obj.p;
                 break;
             case 's':
-                if (score.value === 5) {
+                if (score.value === 5 || score.value === 6) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -421,7 +433,7 @@ export default class ScoreComputer {
                 book = obj.s;
                 break;
             default: // case: 'b'
-                if (score.value === 5) {
+                if (score.value === 5 || score.value === 6) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;

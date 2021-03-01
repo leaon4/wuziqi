@@ -48,14 +48,13 @@ export default class AI {
             if (blackMax.value === 6
                 || blackMax.value === 5 && blackMax.type === 'DeadFour') {
                 result.value = Score.BLACK_WIN;
-                // todo 活四bestMove
                 result.bestMove = blackMax.candidates![0];
                 return result;
             }
             if (whiteMax.value === 6) {
                 // 白子有活四，黑子无四连，则必输
                 result.value = Score.BLACK_LOSE;
-                // todo 活四bestMove
+                result.bestMove = whiteMax.candidates![0];
                 return result;
             }
             let killPoints: number[][] = [];
@@ -153,13 +152,12 @@ export default class AI {
             if (whiteMax.value === 6
                 || whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
                 result.value = Score.BLACK_LOSE;
-                // todo 活四bestMove
                 result.bestMove = whiteMax.candidates![0];
                 return result;
             }
             if (blackMax.value === 6) {
                 result.value = Score.BLACK_WIN;
-                // todo 活四bestMove
+                result.bestMove = blackMax.candidates![0];
                 return result;
             }
             let killPoints: number[][] = [];
