@@ -11,7 +11,7 @@ export type Pair = {
 const candidates = {};
 
 export default class AI {
-    MAX_DEPTH = 5;
+    MAX_DEPTH = 3;
     constructor(public board: Board, public scoreComputer: ScoreComputer) {
         if (board.hasInitialMap) {
             this.initCandidates(board);
@@ -27,9 +27,6 @@ export default class AI {
         return result;
 
         function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec): Pair {
-            if (depth >= 4) {
-                let a = 1;
-            }
             count++
             let result: Pair = {
                 value: Score.DRAW,
