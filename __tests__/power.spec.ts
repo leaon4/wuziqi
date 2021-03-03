@@ -1,11 +1,11 @@
 import Board from '../src/modules/board';
 import AI from '../src/modules/AI';
 import ScoreComputer from '../src/modules/score';
-import { Color } from '../src/modules/definition';
+import { Color, Score } from '../src/modules/definition';
 
-const board = new Board(undefined, 2);
+const board = new Board(2);
 const score = new ScoreComputer(board);
-const ai = new AI(board, score, 1);
+const ai = new AI(board, score, 1, 8);
 
 function downChess(y: number, x: number, color = Color.BLACK) {
     board.downChess(y, x, color);
@@ -23,7 +23,7 @@ test('init', () => {
     expect(board.map.length).toBe(15);
     downChess(7, 7, Color.BLACK)
     expect(board.map[7][7] === Color.BLACK);
-    expect(score.getMaxScore(Color.BLACK).max.code).toBe('000000010000000')
+    expect(score.getTotalScore(Color.BLACK).max.code).toBe('000000010000000')
 });
 
 describe('先手时应该优先连接使自己', () => {
@@ -108,5 +108,28 @@ describe('先手时应该优先连接使自己', () => {
             '5,5': true,
         };
         expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
+    });
+
+    test('算杀', () => {
+        reset([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 2, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 2, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]);
+        const res = downChess(8, 7);
+        expect(res.value).toBe(Score.BLACK_LOSE);
+        expect(res.bestMove).toEqual([9, 9]);
     });
 });

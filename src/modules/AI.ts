@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        readonly MAX_DEPTH = 1,
-        readonly KILL_DEPTH = 4
+        readonly MAX_DEPTH = 3,
+        readonly KILL_DEPTH = 8
     ) {
         this.reset();
     }
@@ -48,12 +48,12 @@ export default class AI {
                 max: blackMax,
                 total: blackTotal,
                 killItems: blackKillItems
-            } = scoreComputer.getMaxScore(Color.BLACK);
+            } = scoreComputer.getTotalScore(Color.BLACK);
             const {
                 max: whiteMax,
                 total: whiteTotal,
                 killItems: whiteKillItems
-            } = scoreComputer.getMaxScore(Color.WHITE);
+            } = scoreComputer.getTotalScore(Color.WHITE);
 
             if (blackMax.type === ChessType.ALIVE_FOUR
                 || blackMax.type === ChessType.DEAD_FOUR) {
@@ -78,6 +78,9 @@ export default class AI {
                 result.bestMove = blackMax.keyCandidates![0];
                 return result;
             } else if (whiteMax.type === ChessType.ALIVE_THREE) {
+                if (!whiteMax.candidates){
+                    console.log(222)
+                }
                 // 白子活三，黑子只能走自己的死三或堵
                 killPoints = [
                     ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
@@ -160,12 +163,12 @@ export default class AI {
                 max: blackMax,
                 total: blackTotal,
                 killItems: blackKillItems
-            } = scoreComputer.getMaxScore(Color.BLACK);
+            } = scoreComputer.getTotalScore(Color.BLACK);
             const {
                 max: whiteMax,
                 total: whiteTotal,
                 killItems: whiteKillItems
-            } = scoreComputer.getMaxScore(Color.WHITE);
+            } = scoreComputer.getTotalScore(Color.WHITE);
 
             if (whiteMax.type === ChessType.ALIVE_FOUR
                 || whiteMax.type === ChessType.DEAD_FOUR) {
@@ -186,6 +189,9 @@ export default class AI {
                 result.bestMove = whiteMax.keyCandidates![0];
                 return result;
             } else if (blackMax.type === ChessType.ALIVE_THREE) {
+                if (!blackMax.candidates){
+                    console.log(222)
+                }
                 killPoints = [
                     ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
                     ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])

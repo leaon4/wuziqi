@@ -80,7 +80,7 @@ export default class ScoreComputer {
             }
         }
         this.addCandidatesToScoreMap();
-        // console.log(Object.keys(scoreMap).length);
+        console.log(Object.keys(scoreMap).length);
         // for (let code in scoreMap) {
         //     if (scoreMap[code].value === 5) {
         //         console.log(code, scoreMap[code].candidates);
@@ -184,7 +184,7 @@ export default class ScoreComputer {
                     scoreMap[code] = {
                         level: log.level - 2,
                         value: 10 ** (log.level - 2),
-                        type: ChessType.ALIVE_ONE // 省略细分
+                        type: log.type - 2 // 省略细分
                     };
                     break;
             }
@@ -575,7 +575,7 @@ export default class ScoreComputer {
             table[key] = null;
         }
     }
-    getMaxScore(color: Color) {
+    getTotalScore(color: Color) {
         let book = color === Color.BLACK ? this.black : this.white;
         let max = {
             type: -1,
