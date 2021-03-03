@@ -23,7 +23,7 @@ test('init', () => {
     expect(board.map.length).toBe(15);
     downChess(7, 7, Color.BLACK)
     expect(board.map[7][7] === Color.BLACK);
-    expect(score.getMaxScore(Color.BLACK).max).toBe('000000010000000')
+    expect(score.getMaxScore(Color.BLACK).max.code).toBe('000000010000000')
 });
 
 describe('先手时应该优先连接使自己', () => {

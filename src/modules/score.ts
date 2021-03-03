@@ -2,7 +2,7 @@ import { traverse } from "@babel/core";
 import Board from "./board";
 import { Color, ChessType } from "./definition";
 
-type BookkeepingItem = {
+export type BookkeepingItem = {
     code: string;
     value: number;
     type: ChessType;
@@ -594,7 +594,7 @@ export default class ScoreComputer {
         return {
             max,
             total,
-            obj: killItems
+            killItems
         };
         function traverse(table: BookkeepingTable) {
             for (let i in table) {

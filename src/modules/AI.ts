@@ -1,6 +1,6 @@
 import Board from "./board";
-import { Color, Score, Rec } from "./definition";
-import ScoreComputer from "./score";
+import { Color, Score, Rec, ChessType } from "./definition";
+import ScoreComputer, { BookkeepingItem } from "./score";
 
 export type Pair = {
     value: Score,
@@ -14,7 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        readonly MAX_DEPTH = 1
+        readonly MAX_DEPTH = 1,
+        readonly KILL_DEPTH = 4
     ) {
         this.reset();
     }
@@ -26,7 +27,7 @@ export default class AI {
     }
     think(y: number, x: number) {
         let count = 0;
-        const { board, MAX_DEPTH, scoreComputer, getScore } = this;
+        const { board, MAX_DEPTH, KILL_DEPTH, scoreComputer, getKillPoints } = this;
         board.setCandidates(y, x, candidates);
         const result = whiteThink(0, [y, x], -Infinity, candidates);
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
@@ -43,41 +44,49 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            let blackMax = scoreComputer.getMaxScore(Color.BLACK);
-            let whiteMax = scoreComputer.getMaxScore(Color.WHITE);
-            if (blackMax.value === 6
-                || blackMax.value === 5 && blackMax.type === 'DeadFour') {
+            const {
+                max: blackMax,
+                total: blackTotal,
+                killItems: blackKillItems
+            } = scoreComputer.getMaxScore(Color.BLACK);
+            const {
+                max: whiteMax,
+                total: whiteTotal,
+                killItems: whiteKillItems
+            } = scoreComputer.getMaxScore(Color.WHITE);
+
+            if (blackMax.type === ChessType.ALIVE_FOUR
+                || blackMax.type === ChessType.DEAD_FOUR) {
+                // 黑子先手有四连的，必赢
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.candidates![0];
                 return result;
             }
-            if (whiteMax.value === 6) {
+            if (whiteMax.type === ChessType.ALIVE_FOUR) {
                 // 白子有活四，黑子无四连，则必输
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.candidates![0];
                 return result;
             }
             let killPoints: number[][] = [];
-            if (whiteMax.type === 'DeadFour') {
+            if (whiteMax.type === ChessType.DEAD_FOUR) {
                 // 白子有死四，这时只能先阻挡
                 killPoints = whiteMax.candidates!;
-            } else if (blackMax.value === 5) {
+            } else if (blackMax.type === ChessType.ALIVE_THREE) {
                 // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.keyCandidates![0];
                 return result;
-            } else if (whiteMax.value === 5) {
-                // 白子活三，黑没有更优的选择，则应该优先堵
-                killPoints = Object.keys(scoreComputer.white.killPoints)
-                    .map(item => item.split(',').map(Number));
+            } else if (whiteMax.type === ChessType.ALIVE_THREE) {
+                // 白子活三，黑子只能走自己的死三或堵
+                killPoints = [
+                    ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
+                    ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
+                ];
             }
 
-            if (!killPoints.length && depth >= MAX_DEPTH) {
-                if (whiteMax.value > blackMax.value) {
-                    result.value = -whiteMax.value;
-                } else {
-                    result.value = blackMax.value;
-                }
+            if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
+                result.value = blackTotal * 10 - whiteTotal;
                 return result;
             }
 
@@ -146,40 +155,47 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            let blackMax = scoreComputer.getMaxScore(Color.BLACK);
-            let whiteMax = scoreComputer.getMaxScore(Color.WHITE);
 
-            if (whiteMax.value === 6
-                || whiteMax.value === 5 && whiteMax.type === 'DeadFour') {
+            const {
+                max: blackMax,
+                total: blackTotal,
+                killItems: blackKillItems
+            } = scoreComputer.getMaxScore(Color.BLACK);
+            const {
+                max: whiteMax,
+                total: whiteTotal,
+                killItems: whiteKillItems
+            } = scoreComputer.getMaxScore(Color.WHITE);
+
+            if (whiteMax.type === ChessType.ALIVE_FOUR
+                || whiteMax.type === ChessType.DEAD_FOUR) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.candidates![0];
                 return result;
             }
-            if (blackMax.value === 6) {
+            if (blackMax.type === ChessType.ALIVE_FOUR) {
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.candidates![0];
                 return result;
             }
             let killPoints: number[][] = [];
-            if (blackMax.type === 'DeadFour') {
+            if (blackMax.type === ChessType.DEAD_FOUR) {
                 killPoints = blackMax.candidates!;
-            } else if (whiteMax.value === 5) {
+            } else if (whiteMax.type === ChessType.ALIVE_THREE) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.keyCandidates![0];
                 return result;
-            } else if (blackMax.value === 5) {
-                killPoints = Object.keys(scoreComputer.black.killPoints)
-                    .map(item => item.split(',').map(Number));
+            } else if (blackMax.type === ChessType.ALIVE_THREE) {
+                killPoints = [
+                    ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
+                    ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])
+                ];
             }
-
-            if (!killPoints.length && depth >= MAX_DEPTH) {
-                if (blackMax.value > whiteMax.value) {
-                    result.value = blackMax.value;
-                } else {
-                    result.value = -whiteMax.value;
-                }
+            if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
+                result.value = blackTotal - whiteTotal * 10;
                 return result;
             }
+
             result.value = Score.BLACK_WIN + 1;
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
@@ -253,5 +269,20 @@ export default class AI {
                 }
             }
         }
+    }
+    private getKillPoints(items: BookkeepingItem[]): number[][] {
+        if (!items.length) {
+            return [];
+        }
+        if (items.length === 1) {
+            return items[0].candidates!
+        }
+        let set = new Set<string>();
+        items.forEach(item => {
+            item.candidates!.forEach(p => {
+                set.add(p.join(','));
+            });
+        });
+        return [...set].map(item => item.split(',').map(Number));
     }
 }
