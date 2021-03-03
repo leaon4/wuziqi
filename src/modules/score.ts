@@ -1,12 +1,13 @@
+import { traverse } from "@babel/core";
 import Board from "./board";
-import { Color } from "./definition";
+import { Color, ChessType } from "./definition";
 
 type BookkeepingItem = {
     code: string;
     value: number;
-    type?: string;
+    type: ChessType;
+    level: number;
     candidates?: number[][];
-    // startPoint?: number[];
     keyCandidates?: number[][];
 };
 
@@ -17,35 +18,34 @@ type Bookkeeping = {
     p: BookkeepingTable;
     s: BookkeepingTable;
     b: BookkeepingTable;
-    killPoints: Record<string, BookkeepingItem[]>;
-}
+};
+
+type ScoreMapItem = {
+    value: number,
+    type: ChessType,
+    level: number,
+    candidates?: number[],
+    keyCandidates?: number[]
+};
 
 export default class ScoreComputer {
-    scoreMap: Record<string, {
-        value: number,
-        type?: string,
-        candidates?: number[],
-        keyCandidates?: number[]
-    }> = {};
+    scoreMap: Record<string, ScoreMapItem> = {};
     black: Bookkeeping = {
         h: {},
         p: {},
         s: {},
         b: {},
-        killPoints: {}
     };
     white: Bookkeeping = {
         h: {},
         p: {},
         s: {},
         b: {},
-        killPoints: {}
     };
     constructor(public borad: Board) {
         console.time('generateScoreMap')
         this.generateScoreMap();
         console.timeEnd('generateScoreMap')
-        // todo board.hasInitialMap
         if (borad.hasInitialMap) {
             this.computeTotalScore(Color.BLACK);
             this.computeTotalScore(Color.WHITE);
@@ -57,14 +57,12 @@ export default class ScoreComputer {
             p: {},
             s: {},
             b: {},
-            killPoints: {}
         };
         this.white = {
             h: {},
             p: {},
             s: {},
             b: {},
-            killPoints: {}
         };
         if (this.borad.hasInitialMap) {
             this.computeTotalScore(Color.BLACK);
@@ -73,6 +71,7 @@ export default class ScoreComputer {
     }
     private generateScoreMap() {
         const { scoreMap } = this;
+        const that = this;
         let arr: number[];
         for (let i = 15; i >= 5; i--) {
             arr = new Array(i).fill(1);
@@ -81,9 +80,7 @@ export default class ScoreComputer {
             }
         }
         this.addCandidatesToScoreMap();
-        // console.log((window as any).scoreMap = scoreMap);
         // console.log(Object.keys(scoreMap).length);
-        // console.log(new Set(Object.values(scoreMap)));
         // for (let code in scoreMap) {
         //     if (scoreMap[code].value === 5) {
         //         console.log(code, scoreMap[code].candidates);
@@ -108,56 +105,88 @@ export default class ScoreComputer {
                 return;
             }
             if (/11111/.test(code)) {
-                scoreMap[code] = {
-                    value: 7,
-                };
-            } else if (/011110/.test(code)) {
-                scoreMap[code] = { value: 6 };
-            } else if (/11110/.test(code) || /01111/.test(code)) {
-                scoreMap[code] = { value: 5, type: 'DeadFour' };
-            } else {
-                let log = {
-                    value: 0,
-                    pos: 0
-                };
-                for (let i = 0; i < code.length; i++) {
-                    if (code[i] === '0') {
-                        let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                        let score = scoreMap[newCode];
-                        if (score === undefined) {
-                            let revCode = newCode.split('').reverse().join('');
-                            score = scoreMap[revCode];
+                return;
+            }
+            let log: BookkeepingItem & { count: number } = {
+                code: '',
+                value: 0,
+                type: 0,
+                level: 0,
+                count: 0,
+            };
+            for (let i = 0; i < code.length; i++) {
+                if (code[i] === '0') {
+                    let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                    let score = that.getScore(newCode);
+                    if (score.level > log.level) {
+                        log.level = score.level;
+                        log.value = score.value;
+                        log.type = score.type;
+                        log.count = 1;
+                    } else if (score.level === log.level) {
+                        if (score.type > log.type) {
+                            log.type = score.type;
+                            log.value = score.value;
                         }
-                        let value = score && score.value;
-                        if (value) {
-                            if (value > log.value) {
-                                log.value = value;
-                                log.pos = 1;
-                            } else if (value === log.value) {
-                                log.pos++;
-                            }
-                        }
+                        log.count++;
                     }
                 }
-                if (log.pos > 1) {
-                    scoreMap[code] = {
-                        value: log.value - 1
-                    };
-                } else {
-                    if (log.value === 7) {
-                        // 死四
+            }
+            /**
+             * 有两处成五，是活四
+             * 只有一处成五，是死四
+             * 只要有一处活四，是活三
+             * 只要能成死四，是死三
+             * 只要能成活三，是活二
+             * 有没有既能成活三又能成死四的？有'000010101'，应该优先算成死三
+             * 忽略对双活三，死四活三的处理
+             */
+            switch (log.level) {
+                case 10:
+                    if (log.count > 1) {
                         scoreMap[code] = {
-                            value: 5,
-                            type: 'DeadFour'
+                            level: 8,
+                            value: 10 ** 8,
+                            type: ChessType.ALIVE_FOUR,
                         };
-                    } else if (log.value === 6) {
-                        // 某些子，如'010110'，尽管没有两处子下，构成活四，
-                        // 但只要有一处能构成，威胁等级依然等同于活三，是必防的
-                        scoreMap[code] = { value: log.value - 1 };
                     } else {
-                        scoreMap[code] = { value: log.value - 2 };
+                        scoreMap[code] = {
+                            level: 6,
+                            value: 10 ** 6,
+                            type: ChessType.DEAD_FOUR
+                        };
                     }
-                }
+                    break;
+                case 8:
+                    scoreMap[code] = {
+                        level: 6,
+                        value: 10 ** 6,
+                        type: ChessType.ALIVE_THREE,
+                    };
+                    break;
+                case 6:
+                    scoreMap[code] = {
+                        level: 4,
+                        value: 10 ** 4,
+                        type: log.type === ChessType.DEAD_FOUR
+                            ? ChessType.DEAD_THREE
+                            : ChessType.ALIVE_TWO
+                    };
+                    break;
+                case 0:
+                    scoreMap[code] = {
+                        level: 0,
+                        value: 0,
+                        type: ChessType.ZERO
+                    };
+                    break;
+                default:
+                    scoreMap[code] = {
+                        level: log.level - 2,
+                        value: 10 ** (log.level - 2),
+                        type: ChessType.ALIVE_ONE // 省略细分
+                    };
+                    break;
             }
         }
     }
@@ -166,7 +195,7 @@ export default class ScoreComputer {
         for (let code in scoreMap) {
             const score = scoreMap[code];
             const candidates = [];
-            if (score.value === 6) {
+            if (score.type === ChessType.ALIVE_FOUR) {
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
                         const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
@@ -175,37 +204,46 @@ export default class ScoreComputer {
                         }
                     }
                 }
-            } else if (score.value === 5) {
-                if (score.type === 'DeadFour') {
-                    for (let i = 0; i < code.length; i++) {
-                        if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
-                            const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                            if (/11111/.test(newCode)) {
-                                candidates.push(i);
-                                break;
-                            }
+            } else if (score.type === ChessType.DEAD_FOUR) {
+                for (let i = 0; i < code.length; i++) {
+                    if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
+                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                        if (/11111/.test(newCode)) {
+                            candidates.push(i);
+                            break;
                         }
                     }
-                } else {
-                    const keyCandidates = [];
-                    for (let i = 0; i < code.length; i++) {
-                        if (code[i] === '0') {
-                            const left = this.getScore(code.slice(0, i));
-                            const right = this.getScore(code.slice(i + 1));
-                            if (left.value < score.value && right.value < score.value) {
-                                candidates.push(i);
-                            }
-                            const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                            const newScore = this.getScore(newCode);
-                            if (newScore.value === 6) {
-                                keyCandidates.push(i);
-                            }
+                }
+            } else if (score.type === ChessType.ALIVE_THREE) {
+                const keyCandidates = [];
+                for (let i = 0; i < code.length; i++) {
+                    if (code[i] === '0') {
+                        const left = this.getScore(code.slice(0, i));
+                        const right = this.getScore(code.slice(i + 1));
+                        if (left.level < score.level && right.level < score.level) {
+                            candidates.push(i);
+                        }
+                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                        const newScore = this.getScore(newCode);
+                        if (newScore.level > score.level) {
+                            keyCandidates.push(i);
                         }
                     }
-                    if (!keyCandidates.length) {
-                        console.error('error')
+                }
+                if (!keyCandidates.length) {
+                    console.error('error')
+                }
+                // 遇上活三加死四类的情况，candidates为空，因此在这里赋值
+                score.candidates = candidates;
+                score.keyCandidates = keyCandidates;
+            } else if (score.type === ChessType.DEAD_THREE) {
+                for (let i = 0; i < code.length; i++) {
+                    if (code[i] === '0') {
+                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                        if (this.getScore(newCode).type === ChessType.DEAD_FOUR) {
+                            candidates.push(i);
+                        }
                     }
-                    score.keyCandidates = keyCandidates;
                 }
             }
             if (candidates.length) {
@@ -213,11 +251,20 @@ export default class ScoreComputer {
             }
         }
     }
-    private getScore(code: string) {
+    private getScore(code: string): ScoreMapItem {
         if (code.length < 5) {
             return {
-                value: 0
+                value: 0,
+                level: 0,
+                type: 0
             };
+        }
+        if (/11111/.test(code)) {
+            return {
+                value: 10 ** 10,
+                level: 10,
+                type: ChessType.FIVE
+            }
         }
         if (this.scoreMap[code]) {
             return this.scoreMap[code];
@@ -364,16 +411,15 @@ export default class ScoreComputer {
         const item: BookkeepingItem = {
             code,
             value: score.value,
+            type: score.type,
+            level: score.level
         };
-        if (score.type) {
-            item.type = score.type;
-        }
 
         let key = -1;
         let book: BookkeepingTable;
         switch (dir) {
             case 'h':
-                if (score.value === 5 || score.value === 6) {
+                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -393,7 +439,7 @@ export default class ScoreComputer {
                 book = obj.h;
                 break;
             case 'p':
-                if (score.value === 5 || score.value === 6) {
+                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -413,7 +459,7 @@ export default class ScoreComputer {
                 book = obj.p;
                 break;
             case 's':
-                if (score.value === 5 || score.value === 6) {
+                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -433,7 +479,7 @@ export default class ScoreComputer {
                 book = obj.s;
                 break;
             default: // case: 'b'
-                if (score.value === 5 || score.value === 6) {
+                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -453,12 +499,7 @@ export default class ScoreComputer {
                 book = obj.b;
         }
         (book[key] || (book[key] = [])).push(item);
-        if (score.value === 5) {
-            item.candidates!.forEach(p => {
-                let key = p[0] + ',' + p[1];
-                (obj.killPoints[key] || (obj.killPoints[key] = [])).push(item);
-            });
-        } else if (score.value === 7) {
+        if (score.type === ChessType.FIVE) {
             res && (res.flag = true);
         }
     }
@@ -472,13 +513,11 @@ export default class ScoreComputer {
         this.black.p = Object.create(this.black.p);
         this.black.s = Object.create(this.black.s);
         this.black.b = Object.create(this.black.b);
-        this.black.killPoints = Object.create(this.black.killPoints);
 
         this.white.h = Object.create(this.white.h);
         this.white.p = Object.create(this.white.p);
         this.white.s = Object.create(this.white.s);
         this.white.b = Object.create(this.white.b);
-        this.white.killPoints = Object.create(this.white.killPoints);
 
         this.clearScoreFake(y, x);
         let res = [
@@ -492,13 +531,11 @@ export default class ScoreComputer {
         this.black.p = Object.getPrototypeOf(this.black.p);
         this.black.s = Object.getPrototypeOf(this.black.s);
         this.black.b = Object.getPrototypeOf(this.black.b);
-        this.black.killPoints = Object.getPrototypeOf(this.black.killPoints);
 
         this.white.h = Object.getPrototypeOf(this.white.h);
         this.white.p = Object.getPrototypeOf(this.white.p);
         this.white.s = Object.getPrototypeOf(this.white.s);
         this.white.b = Object.getPrototypeOf(this.white.b);
-        this.white.killPoints = Object.getPrototypeOf(this.white.killPoints);
     }
     private clearScore(y: number, x: number) {
         const { black, white } = this;
@@ -506,37 +543,16 @@ export default class ScoreComputer {
             pKey = x,
             sKey = x + y,
             bKey = 14 - y + x;
-        deleteKey(black.h, hKey, black.killPoints);
-        deleteKey(black.p, pKey, black.killPoints);
-        deleteKey(black.s, sKey, black.killPoints);
-        deleteKey(black.b, bKey, black.killPoints);
+        deleteKey(black.h, hKey);
+        deleteKey(black.p, pKey);
+        deleteKey(black.s, sKey);
+        deleteKey(black.b, bKey);
 
-        deleteKey(white.h, hKey, white.killPoints);
-        deleteKey(white.p, pKey, white.killPoints);
-        deleteKey(white.s, sKey, white.killPoints);
-        deleteKey(white.b, bKey, white.killPoints);
-        function deleteKey(table: BookkeepingTable, key: number, killPoints: typeof black.killPoints) {
-            if (table[key]) {
-                table[key]!.forEach(item => {
-                    // 有candidates说明是活三死四
-                    if (item.candidates) {
-                        item.candidates.forEach(p => {
-                            let key = p[0] + ',' + p[1];
-                            if (killPoints[key]) {
-                                let idx = killPoints[key].findIndex(item2 => {
-                                    return item2.code === item.code;
-                                });
-                                if (idx > -1) {
-                                    killPoints[key].splice(idx, 1);
-                                    if (!killPoints[key].length) {
-                                        delete killPoints[key]
-                                    }
-                                }
-                            }
-                        })
-                    }
-                })
-            }
+        deleteKey(white.h, hKey);
+        deleteKey(white.p, pKey);
+        deleteKey(white.s, sKey);
+        deleteKey(white.b, bKey);
+        function deleteKey(table: BookkeepingTable, key: number) {
             delete table[key];
         }
     }
@@ -546,67 +562,54 @@ export default class ScoreComputer {
             pKey = x,
             sKey = x + y,
             bKey = 14 - y + x;
-        deleteKey(black.h, hKey, black.killPoints);
-        deleteKey(black.p, pKey, black.killPoints);
-        deleteKey(black.s, sKey, black.killPoints);
-        deleteKey(black.b, bKey, black.killPoints);
+        deleteKey(black.h, hKey);
+        deleteKey(black.p, pKey);
+        deleteKey(black.s, sKey);
+        deleteKey(black.b, bKey);
 
-        deleteKey(white.h, hKey, white.killPoints);
-        deleteKey(white.p, pKey, white.killPoints);
-        deleteKey(white.s, sKey, white.killPoints);
-        deleteKey(white.b, bKey, white.killPoints);
-        function deleteKey(table: BookkeepingTable, key: number, killPoints: typeof black.killPoints) {
-            if (table[key]) {
-                table[key]!.forEach(item => {
-                    // 有candidates说明是活三死四
-                    if (item.candidates) {
-                        item.candidates.forEach(p => {
-                            let key = p[0] + ',' + p[1];
-                            if (!killPoints.hasOwnProperty(key)) {
-                                // 从原型上复制
-                                killPoints[key] = killPoints[key].slice();
-                            }
-                            let idx = killPoints[key].findIndex(item2 => {
-                                return item2.code === item.code;
-                            });
-                            if (idx > -1) {
-                                killPoints[key].splice(idx, 1);
-                            }
-                        })
-                    }
-                })
-            }
+        deleteKey(white.h, hKey);
+        deleteKey(white.p, pKey);
+        deleteKey(white.s, sKey);
+        deleteKey(white.b, bKey);
+        function deleteKey(table: BookkeepingTable, key: number) {
             table[key] = null;
         }
     }
     getMaxScore(color: Color) {
         let book = color === Color.BLACK ? this.black : this.white;
-        let max: BookkeepingItem = {
-            value: -1,
-            code: ''
-        }
-        findMax(book.h);
-        findMax(book.p);
-        findMax(book.s);
-        findMax(book.b);
-        return max;
-        function findMax(table: BookkeepingTable) {
+        let max = {
+            type: -1,
+        } as BookkeepingItem;
+        let total = 0;
+        const killItems: Record<number, BookkeepingItem[]> = {
+            [ChessType.ALIVE_FOUR]: [],
+            [ChessType.DEAD_FOUR]: [],
+            [ChessType.ALIVE_THREE]: [],
+            [ChessType.DEAD_THREE]: [],
+        };
+        traverse(book.h);
+        traverse(book.p);
+        traverse(book.s);
+        traverse(book.b);
+        return {
+            max,
+            total,
+            obj: killItems
+        };
+        function traverse(table: BookkeepingTable) {
             for (let i in table) {
                 if (table[i]) {
                     table[i]!.forEach(item => {
-                        if (item.value > max.value) {
+                        if (item.type > max.type) {
                             max = item;
+                        }
+                        total += item.value;
+                        if (item.type >= ChessType.DEAD_THREE) {
+                            killItems[item.type].push(item);
                         }
                     });
                 }
             }
-        }
-    }
-    findKeyPointOfAliveThree(item: BookkeepingItem) {
-        //assert
-        if (item.value !== 5 || item.type) {
-            console.error('findKeyPointOfAliveThree');
-            return;
         }
     }
 }
