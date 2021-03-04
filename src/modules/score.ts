@@ -1,4 +1,3 @@
-import { traverse } from "@babel/core";
 import Board from "./board";
 import { Color, ChessType } from "./definition";
 
@@ -107,8 +106,7 @@ export default class ScoreComputer {
             if (/11111/.test(code)) {
                 return;
             }
-            let log: BookkeepingItem & { count: number } = {
-                code: '',
+            let log: ScoreMapItem & { count: number } = {
                 value: 0,
                 type: 0,
                 level: 0,
@@ -124,6 +122,7 @@ export default class ScoreComputer {
                         log.type = score.type;
                         log.count = 1;
                     } else if (score.level === log.level) {
+                        // tothink 以type还是value来比较
                         if (score.type > log.type) {
                             log.type = score.type;
                             log.value = score.value;
@@ -600,6 +599,7 @@ export default class ScoreComputer {
             for (let i in table) {
                 if (table[i]) {
                     table[i]!.forEach(item => {
+                        // tothink value还是type
                         if (item.type > max.type) {
                             max = item;
                         }
