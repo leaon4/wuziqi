@@ -20,6 +20,7 @@ import ScoreComputer from './modules/score';
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 // ]);
+
 const board = new Board();
 const score = (window as any).score = new ScoreComputer(board);
 const ai = new AI(board, score);

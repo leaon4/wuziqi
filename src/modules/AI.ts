@@ -29,7 +29,7 @@ export default class AI {
         let count = 0;
         const { board, MAX_DEPTH, KILL_DEPTH, scoreComputer, getKillPoints, getToTraversePoints } = this;
         board.setCandidates(y, x, candidates);
-        const result = whiteThink(0, [y, x], -Infinity, candidates);
+        const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
         return result;
@@ -93,7 +93,7 @@ export default class AI {
                 return result;
             }
 
-            result.value = Score.BLACK_LOSE - 1;
+            result.value = Score.BLACK_LOSE;
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
@@ -118,6 +118,8 @@ export default class AI {
                     if (result.value >= beta) {
                         break;
                     }
+                } else if (res.value === result.value && !result.bestMove.length) {
+                    result.bestMove = res.bestMove;
                 }
             }
             return result;
@@ -176,7 +178,7 @@ export default class AI {
                 return result;
             }
 
-            result.value = Score.BLACK_WIN + 1;
+            result.value = Score.BLACK_WIN;
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
@@ -201,6 +203,8 @@ export default class AI {
                     if (result.value <= alpha) {
                         break;
                     }
+                } else if (res.value === result.value && !result.bestMove.length) {
+                    result.bestMove = res.bestMove;
                 }
             }
             return result;

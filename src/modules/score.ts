@@ -41,11 +41,11 @@ export default class ScoreComputer {
         s: {},
         b: {},
     };
-    constructor(public borad: Board) {
+    constructor(public board: Board) {
         console.time('generateScoreMap')
         this.generateScoreMap();
         console.timeEnd('generateScoreMap')
-        if (borad.hasInitialMap) {
+        if (board.hasInitialMap) {
             this.computeTotalScore(Color.BLACK);
             this.computeTotalScore(Color.WHITE);
         }
@@ -63,7 +63,7 @@ export default class ScoreComputer {
             s: {},
             b: {},
         };
-        if (this.borad.hasInitialMap) {
+        if (this.board.hasInitialMap) {
             this.computeTotalScore(Color.BLACK);
             this.computeTotalScore(Color.WHITE);
         }
@@ -273,7 +273,7 @@ export default class ScoreComputer {
     }
     computeTotalScore(color: Color) {
         const { scoreMap, black, white } = this;
-        const { map } = this.borad;
+        const { map } = this.board;
         let code: string;
         const bookkeeping = color === Color.BLACK ? black : white;
         const that = this;
@@ -335,7 +335,7 @@ export default class ScoreComputer {
     }
     private logBookkeeping(y0: number, x0: number, color: Color): boolean {
         const { black, white } = this;
-        const { map } = this.borad;
+        const { map } = this.board;
         const that = this;
         const bookkeeping = color === Color.BLACK ? black : white;
         let y: number, x: number;
