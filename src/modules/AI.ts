@@ -14,7 +14,7 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 4,
+        public MAX_DEPTH = 3,
         public KILL_DEPTH = 8
     ) {
         this.reset();
@@ -169,7 +169,8 @@ export default class AI {
                         break;
                     }
                 } else if (res.value === result.value && !result.bestMove.length) {
-                    result.bestMove = res.bestMove;
+                    // result.bestMove = res.bestMove;
+                    result.bestMove = [y, x];
                     // tothink
                     // 这里如果res.value === BLACK_LOSE，好像可以跳出break
                 }
@@ -290,7 +291,8 @@ export default class AI {
                         break;
                     }
                 } else if (res.value === result.value && !result.bestMove.length) {
-                    result.bestMove = res.bestMove;
+                    result.bestMove = [y, x];
+                    // result.bestMove = res.bestMove;
                 }
             }
             return result;
