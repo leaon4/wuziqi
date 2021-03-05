@@ -9,7 +9,7 @@ import { Color, Rec } from './definition';
 export default class Board {
     map: number[][] = [];
     hasInitialMap = false;
-    constructor(readonly MAX_CHESS_LENGTH = 1, map?: number[][],) {
+    constructor(public MAX_CHESS_LENGTH = 1, map?: number[][],) {
         this.reset(map);
     }
     reset(map?: number[][]) {

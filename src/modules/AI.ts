@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        readonly MAX_DEPTH = 1,
-        readonly KILL_DEPTH = 8
+        public MAX_DEPTH = 1,
+        public KILL_DEPTH = 8
     ) {
         this.reset();
     }
@@ -27,7 +27,14 @@ export default class AI {
     }
     think(y: number, x: number) {
         let count = 0;
-        const { board, MAX_DEPTH, KILL_DEPTH, scoreComputer, getKillPoints, getToTraversePoints } = this;
+        const {
+            board,
+            MAX_DEPTH, KILL_DEPTH,
+            scoreComputer,
+            getKillPoints,
+            getToTraversePoints,
+            hasRushFour
+        } = this;
         board.setCandidates(y, x, candidates);
         const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
@@ -77,15 +84,24 @@ export default class AI {
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.keyCandidates![0];
                 return result;
-            } else if (whiteMax.type === ChessType.ALIVE_THREE) {
-                if (!whiteMax.candidates) {
-                    console.log(222)
+            } else {
+                let rushFourPoint = hasRushFour(blackMax, blackKillItems);
+                // 先检查有无冲四的可能
+                if (rushFourPoint) {
+                    result.value = Score.BLACK_WIN;
+                    result.bestMove = rushFourPoint;
+                    return result;
                 }
-                // 白子活三，黑子只能走自己的死三或堵
-                killPoints = [
-                    ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                    ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
-                ];
+                if (whiteMax.type === ChessType.ALIVE_THREE) {
+                    if (!whiteMax.candidates) {
+                        console.error('whiteMax.candidates is empty')
+                    }
+                    // 白子活三，黑子只能走自己的死三或堵
+                    killPoints = [
+                        ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
+                        ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
+                    ];
+                }
             }
 
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
@@ -164,15 +180,24 @@ export default class AI {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.keyCandidates![0];
                 return result;
-            } else if (blackMax.type === ChessType.ALIVE_THREE) {
-                if (!blackMax.candidates) {
-                    console.log(222)
+            } else {
+                let rushFourPoint = hasRushFour(whiteMax, whiteKillItems);
+                if (rushFourPoint) {
+                    result.value = Score.BLACK_LOSE;
+                    result.bestMove = rushFourPoint;
+                    return result;
                 }
-                killPoints = [
-                    ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                    ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])
-                ];
+                if (blackMax.type === ChessType.ALIVE_THREE) {
+                    if (!blackMax.candidates) {
+                        console.error('blackMax.candidates is empty')
+                    }
+                    killPoints = [
+                        ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
+                        ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])
+                    ];
+                }
             }
+            
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
                 result.value = blackTotal - whiteTotal * 10;
                 return result;
@@ -208,6 +233,26 @@ export default class AI {
                 }
             }
             return result;
+        }
+    }
+    private hasRushFour(item: BookkeepingItem, killItems: Record<number, BookkeepingItem[]>): number[] | undefined {
+        if (item.type !== ChessType.DEAD_THREE) {
+            return;
+        }
+        let deadThreeItems = killItems[ChessType.DEAD_THREE];
+        if (deadThreeItems.length > 1) {
+            let uniqObj: Rec = {};
+            for (let i = 0; i < deadThreeItems.length; i++) {
+                let item = deadThreeItems[i];
+                for (let j = 0; j < item.candidates!.length; j++) {
+                    let candidate = item.candidates![j];
+                    let key = candidate.join(',');
+                    if (uniqObj[key]) {
+                        return candidate;
+                    }
+                    uniqObj[key] = true;
+                }
+            }
         }
     }
     private getToTraversePoints(killPoints: number[][], candidates: any) {

@@ -2,6 +2,7 @@ import { Color, Score } from '../src/modules/definition';
 import TestUtil from './testUtils';
 
 const util = new TestUtil(1, 1, 8);
+const { board } = util;
 
 describe('防守', () => {
     test('活三: 000111000', () => {
@@ -185,5 +186,33 @@ describe('防守', () => {
         };
         expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
         expect(res.value).toBeLessThan(Score.BLACK_WIN);
+    });
+
+    test('防双冲四', () => {
+        board.MAX_CHESS_LENGTH = 2;
+        util.reset([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 2, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]);
+        const res = util.downChess(0, 0);
+        const expectPoints: any = {
+            '4,5': true,
+        };
+        expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
+        expect(res.value).toBeLessThan(Score.BLACK_WIN);
+        board.MAX_CHESS_LENGTH = 1;
     });
 })
