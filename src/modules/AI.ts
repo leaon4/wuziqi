@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 1,
-        public KILL_DEPTH = 1
+        public MAX_DEPTH = 4,
+        public KILL_DEPTH = 8
     ) {
         this.reset();
     }
@@ -97,6 +97,7 @@ export default class AI {
                         console.error('whiteMax.candidates is empty')
                     }
                     // 白子活三，黑子只能走自己的死三或堵
+                    // todo 这种写法会有重复点，下面也相同，需要处理
                     killPoints = [
                         ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
                         ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
@@ -111,9 +112,32 @@ export default class AI {
                             whiteRushFourPoint
                         ];
                     }
+                } else {
+                    // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
+                    // 因此先只考虑黑子没有死三时的双三情况
+                    if (blackKillItems[ChessType.ALIVE_TWO].length > 1) {
+                        let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
+                        if (blackDoubleThreePoint) {
+                            result.value = Score.BLACK_WIN;
+                            result.bestMove = blackDoubleThreePoint;
+                            return result;
+                        }
+                    }
+                    // 同理，如果黑子没有死三和活二，则必防白子双三。
+                    // 否则，则能下的点只有黑子的死三，活二和堵。
+                    // todo 这里偷了懒，堵的点不精确，笼统的把白子活二堵点全部拿进去了
+                    let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
+                    if (whiteDoubleThreePoint) {
+                        killPoints = [
+                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
+                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
+                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
+                        ];
+                    }
                 }
             }
 
+            // todo 应该再具体区分killPoints，比如如果只有一个的情况
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
                 result.value = blackTotal * 10 - whiteTotal;
                 return result;
@@ -215,6 +239,23 @@ export default class AI {
                             blackRushFourPoint
                         ];
                     }
+                } else {
+                    if (whiteKillItems[ChessType.ALIVE_TWO].length > 1) {
+                        let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
+                        if (whiteDoubleThreePoint) {
+                            result.value = Score.BLACK_LOSE;
+                            result.bestMove = whiteDoubleThreePoint;
+                            return result;
+                        }
+                    }
+                    let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
+                    if (blackDoubleThreePoint) {
+                        killPoints = [
+                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
+                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
+                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
+                        ];
+                    }
                 }
             }
 
@@ -310,6 +351,31 @@ export default class AI {
             board.restore(y, x);
             scoreComputer.restore();
             return maxType < ChessType.DEAD_FOUR;
+        }
+    }
+    private hasDoubleThreePoint(
+        max: BookkeepingItem,
+        killItems: Record<number, BookkeepingItem[]>,
+        color: Color
+    ): number[] | undefined {
+        // 这里用小于，因为max.type有可能为DEAD_THREE，仍有可能是双三。
+        if (max.type < ChessType.ALIVE_TWO) {
+            return;
+        }
+        let aliveTwoItems = killItems[ChessType.ALIVE_TWO];
+        if (aliveTwoItems.length > 1) {
+            let uniqObj: Rec = {};
+            for (let i = 0; i < aliveTwoItems.length; i++) {
+                let item = aliveTwoItems[i];
+                for (let j = 0; j < item.candidates!.length; j++) {
+                    let candidate = item.candidates![j];
+                    let key = candidate.join(',');
+                    if (uniqObj[key]) {
+                        return candidate;
+                    }
+                    uniqObj[key] = true;
+                }
+            }
         }
     }
     private getToTraversePoints(killPoints: number[][], candidates: any) {

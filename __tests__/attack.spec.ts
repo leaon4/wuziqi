@@ -1,7 +1,7 @@
 import { Color, Score } from '../src/modules/definition';
 import TestUtil from './testUtils';
 
-const util = new TestUtil(1, 1, 8);
+const util = new TestUtil(1, 1, 1);
 const { board, score } = util;
 
 test('init', () => {
@@ -167,9 +167,6 @@ describe('进攻', () => {
     });
 
     test('双冲四', () => {
-        const prevLen = board.MAX_CHESS_LENGTH;
-        // 需要确保length为1，否则通过全遍历也能发现杀招。
-        board.MAX_CHESS_LENGTH = 1;
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -190,14 +187,9 @@ describe('进攻', () => {
         const res = util.downChess(0, 0);
         expect(res.value).toBe(Score.BLACK_LOSE);
         expect(res.bestMove).toEqual([4, 5]);
-
-        board.MAX_CHESS_LENGTH = prevLen;
     });
 
     test('冲四活三', () => {
-        const prevLen = board.MAX_CHESS_LENGTH;
-        // 需要确保length为1，否则通过全遍历也能发现杀招。
-        board.MAX_CHESS_LENGTH = 1;
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -218,14 +210,9 @@ describe('进攻', () => {
         const res = util.downChess(0, 0);
         expect(res.value).toBe(Score.BLACK_LOSE);
         expect(res.bestMove).toEqual([6, 9]);
-
-        board.MAX_CHESS_LENGTH = prevLen;
     });
 
     test('冲四活三如果让防守方借机得到4连，则冲四活三失败', () => {
-        const prevLen = board.MAX_CHESS_LENGTH;
-        // 需要确保length为1，否则通过全遍历也能发现杀招。
-        board.MAX_CHESS_LENGTH = 1;
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -246,7 +233,51 @@ describe('进攻', () => {
         const res = util.downChess(0, 0);
         expect(res.value).toBeGreaterThan(Score.BLACK_LOSE);
         expect(res.bestMove).toEqual([7, 8]);
+    });
 
-        board.MAX_CHESS_LENGTH = prevLen;
+    test('双三', () => {
+        util.reset([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]);
+        const res = util.downChess(14, 0);
+        expect(res.value).toBe(Score.BLACK_LOSE);
+        expect(res.bestMove).toEqual([9, 5]);
+    });
+
+    test('双三，但对方有死三，则不能一步计算出胜负', () => {
+        util.reset([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+            [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ]);
+        const res = util.downChess(13, 0);
+        expect(res.value).toBeGreaterThan(Score.BLACK_LOSE);
+        expect(res.bestMove).toEqual([9, 5]);
     });
 });
