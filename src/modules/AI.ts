@@ -15,7 +15,7 @@ export default class AI {
         public board: Board,
         public scoreComputer: ScoreComputer,
         readonly MAX_DEPTH = 3,
-        readonly KILL_DEPTH = 8
+        readonly KILL_DEPTH = 10
     ) {
         this.reset();
     }
