@@ -81,7 +81,7 @@ export default class ScoreComputer {
         this.addCandidatesToScoreMap();
         console.log(Object.keys(scoreMap).length);
         // for (let code in scoreMap) {
-        //     if (scoreMap[code].value === 5) {
+        //     if (scoreMap[code].type === ChessType.ALIVE_TWO) {
         //         console.log(code, scoreMap[code].candidates);
         //     }
         // }
@@ -244,6 +244,15 @@ export default class ScoreComputer {
                         }
                     }
                 }
+            } else if (score.type === ChessType.ALIVE_TWO) {
+                for (let i = 0; i < code.length; i++) {
+                    if (code[i] === '0') {
+                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                        if (this.getScore(newCode).type === ChessType.ALIVE_THREE) {
+                            candidates.push(i);
+                        }
+                    }
+                }
             }
             if (candidates.length) {
                 score.candidates = candidates;
@@ -333,13 +342,13 @@ export default class ScoreComputer {
             }
         }
     }
-    private logBookkeeping(y0: number, x0: number, color: Color): boolean {
+    private logBookkeeping(y0: number, x0: number, color: Color): ChessType {
         const { black, white } = this;
         const { map } = this.board;
         const that = this;
         const bookkeeping = color === Color.BLACK ? black : white;
         let y: number, x: number;
-        let isWin = { flag: false };
+        let maxTypeOfThisPoint = { type: ChessType.ZERO };
 
         // h -
         let code = '';
@@ -347,7 +356,7 @@ export default class ScoreComputer {
             addCode(y0, x, 'h', bookkeeping);
         }
         if (code) {
-            this.logItem(code, y0, x, 'h', bookkeeping, isWin);
+            this.logItem(code, y0, x, 'h', bookkeeping, maxTypeOfThisPoint);
         }
 
         // p |
@@ -356,7 +365,7 @@ export default class ScoreComputer {
             addCode(y, x0, 'p', bookkeeping);
         }
         if (code) {
-            this.logItem(code, y, x0, 'p', bookkeeping, isWin);
+            this.logItem(code, y, x0, 'p', bookkeeping, maxTypeOfThisPoint);
         }
 
         // s /
@@ -369,7 +378,7 @@ export default class ScoreComputer {
             addCode(y, x, 's', bookkeeping);
         }
         if (code) {
-            this.logItem(code, y, x, 's', bookkeeping, isWin);
+            this.logItem(code, y, x, 's', bookkeeping, maxTypeOfThisPoint);
         }
 
         // b \
@@ -382,22 +391,22 @@ export default class ScoreComputer {
             addCode(y, x, 'b', bookkeeping);
         }
         if (code) {
-            this.logItem(code, y, x, 'b', bookkeeping, isWin);
+            this.logItem(code, y, x, 'b', bookkeeping, maxTypeOfThisPoint);
         }
 
-        return isWin.flag;
+        return maxTypeOfThisPoint.type;
         function addCode(y: number, x: number, dir: string, obj: Bookkeeping) {
             if (map[y][x] === 0) {
                 code += '0';
             } else if (map[y][x] === color) {
                 code += '1';
             } else if (code) {
-                that.logItem(code, y, x, dir, obj, isWin);
+                that.logItem(code, y, x, dir, obj, maxTypeOfThisPoint);
                 code = '';
             }
         }
     }
-    private logItem(code: string, yEnd: number, xEnd: number, dir: string, obj: Bookkeeping, res?: { flag: boolean }) {
+    private logItem(code: string, yEnd: number, xEnd: number, dir: string, obj: Bookkeeping, maxTypeOfThisPoint?: { type: ChessType }) {
         const { scoreMap } = this;
         if (code.length < 5) {
             return;
@@ -418,7 +427,7 @@ export default class ScoreComputer {
         let book: BookkeepingTable;
         switch (dir) {
             case 'h':
-                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
+                if (score.level >= 4 && score.level <= 8) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -438,7 +447,7 @@ export default class ScoreComputer {
                 book = obj.h;
                 break;
             case 'p':
-                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
+                if (score.level >= 4 && score.level <= 8) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -458,7 +467,7 @@ export default class ScoreComputer {
                 book = obj.p;
                 break;
             case 's':
-                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
+                if (score.level >= 4 && score.level <= 8) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -478,7 +487,7 @@ export default class ScoreComputer {
                 book = obj.s;
                 break;
             default: // case: 'b'
-                if (score.level === 8 || score.level === 6 || score.type === ChessType.DEAD_THREE) {
+                if (score.level >= 4 && score.level <= 8) {
                     item.candidates = score.candidates!.map(pos => {
                         if (isRev) {
                             pos = code.length - 1 - pos;
@@ -498,8 +507,8 @@ export default class ScoreComputer {
                 book = obj.b;
         }
         (book[key] || (book[key] = [])).push(item);
-        if (score.type === ChessType.FIVE) {
-            res && (res.flag = true);
+        if (maxTypeOfThisPoint && score.type > maxTypeOfThisPoint.type) {
+            maxTypeOfThisPoint.type = score.type;
         }
     }
     downChess(y: number, x: number) {
@@ -507,7 +516,7 @@ export default class ScoreComputer {
         this.logBookkeeping(y, x, Color.BLACK);
         this.logBookkeeping(y, x, Color.WHITE);
     }
-    downChessFake(y: number, x: number, color: Color): boolean {
+    downChessFake(y: number, x: number, color: Color): ChessType {
         this.black.h = Object.create(this.black.h);
         this.black.p = Object.create(this.black.p);
         this.black.s = Object.create(this.black.s);
@@ -585,6 +594,7 @@ export default class ScoreComputer {
             [ChessType.DEAD_FOUR]: [],
             [ChessType.ALIVE_THREE]: [],
             [ChessType.DEAD_THREE]: [],
+            [ChessType.ALIVE_TWO]: [],
         };
         traverse(book.h);
         traverse(book.p);
@@ -604,7 +614,7 @@ export default class ScoreComputer {
                             max = item;
                         }
                         total += item.value;
-                        if (item.type >= ChessType.DEAD_THREE) {
+                        if (item.type >= ChessType.ALIVE_TWO) {
                             killItems[item.type].push(item);
                         }
                     });
