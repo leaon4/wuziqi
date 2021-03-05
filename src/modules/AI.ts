@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        readonly MAX_DEPTH = 3,
-        readonly KILL_DEPTH = 10
+        readonly MAX_DEPTH = 1,
+        readonly KILL_DEPTH = 8
     ) {
         this.reset();
     }
