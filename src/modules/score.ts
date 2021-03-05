@@ -123,7 +123,7 @@ export default class ScoreComputer {
                         log.count = 1;
                     } else if (score.level === log.level) {
                         // tothink 以type还是value来比较
-                        if (score.type > log.type) {
+                        if (score.type > log.type || score.value > log.value) {
                             log.type = score.type;
                             log.value = score.value;
                         }
@@ -151,7 +151,7 @@ export default class ScoreComputer {
                     } else {
                         scoreMap[code] = {
                             level: 6,
-                            value: 10 ** 6,
+                            value: 10 ** 6 + 500,
                             type: ChessType.DEAD_FOUR
                         };
                     }
@@ -159,18 +159,24 @@ export default class ScoreComputer {
                 case 8:
                     scoreMap[code] = {
                         level: 6,
-                        value: 10 ** 6,
+                        value: 10 ** 6 - (log.count > 1 ? 0 : 200000),
                         type: ChessType.ALIVE_THREE,
                     };
                     break;
                 case 6:
-                    scoreMap[code] = {
-                        level: 4,
-                        value: 10 ** 4,
-                        type: log.type === ChessType.DEAD_FOUR
-                            ? ChessType.DEAD_THREE
-                            : ChessType.ALIVE_TWO
-                    };
+                    if (log.type === ChessType.DEAD_FOUR) {
+                        scoreMap[code] = {
+                            level: 4,
+                            value: 12000,
+                            type: ChessType.DEAD_THREE
+                        };
+                    } else {
+                        scoreMap[code] = {
+                            level: 4,
+                            value: log.value / 100 - (log.count > 1 ? 0 : 2000),
+                            type: ChessType.ALIVE_TWO
+                        };
+                    }
                     break;
                 case 0:
                     scoreMap[code] = {
@@ -182,7 +188,7 @@ export default class ScoreComputer {
                 default:
                     scoreMap[code] = {
                         level: log.level - 2,
-                        value: 10 ** (log.level - 2),
+                        value: ~~(log.value / 100 - (log.count > 1 ? 0 : 20)),
                         type: log.type - 2 // 省略细分
                     };
                     break;
