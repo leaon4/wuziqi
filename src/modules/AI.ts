@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 2,
-        public KILL_DEPTH = 10
+        public MAX_DEPTH = 4,
+        public KILL_DEPTH = 1
     ) {
         this.reset();
     }
@@ -62,84 +62,14 @@ export default class AI {
                 killItems: whiteKillItems
             } = scoreComputer.getTotalScore(Color.WHITE);
 
-            if (blackMax.type === ChessType.ALIVE_FOUR
-                || blackMax.type === ChessType.DEAD_FOUR) {
-                // 黑子先手有四连的，必赢
-                result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.candidates![0];
-                return result;
-            }
-            if (whiteMax.type === ChessType.ALIVE_FOUR) {
-                // 白子有活四，黑子无四连，则必输
-                result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.candidates![0];
-                return result;
-            }
-            let killPoints: number[][] = [];
-            if (whiteMax.type === ChessType.DEAD_FOUR) {
-                // 白子有死四，这时只能先阻挡
-                killPoints = whiteMax.candidates!;
-            } else if (blackMax.type === ChessType.ALIVE_THREE) {
-                // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
-                result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.keyCandidates![0];
-                return result;
-            } else {
-                // 先检查有无冲四的可能
-                let blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
-                if (blackRushFourPoint) {
-                    result.value = Score.BLACK_WIN;
-                    result.bestMove = blackRushFourPoint;
-                    return result;
-                }
-                if (whiteMax.type === ChessType.ALIVE_THREE) {
-                    if (!whiteMax.candidates) {
-                        console.error('whiteMax.candidates is empty')
-                    }
-                    // 白子活三，黑子只能走自己的死三或堵
-                    // todo 这种写法会有重复点，下面也相同，需要处理
-                    killPoints = [
-                        ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                        ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
-                    ];
-                } else if (whiteMax.type === ChessType.DEAD_THREE) {
-                    // 检查白子有无冲四的可能
-                    let whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
-                    if (whiteRushFourPoint) {
-                        // 如果有，黑子只能走自己的死三或堵
-                        killPoints = [
-                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            whiteRushFourPoint
-                        ];
-                    }
-                } else {
-                    // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
-                    // 因此先只考虑黑子没有死三时的双三情况
-                    if (blackKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
-                        if (blackDoubleThreePoint) {
-                            result.value = Score.BLACK_WIN;
-                            result.bestMove = blackDoubleThreePoint;
-                            return result;
-                        }
-                    }
-                    // 同理，如果黑子没有死三和活二，则必防白子双三。
-                    // 否则，则能下的点只有黑子的死三，活二和堵。
-                    // todo 这里偷了懒，堵的点不精确，笼统的把白子活二堵点全部拿进去了
-                    let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
-                    if (whiteDoubleThreePoint) {
-                        killPoints = [
-                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
-                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
-                        ];
-                    }
-                }
-            }
 
-            // todo 应该再具体区分killPoints，比如如果只有一个的情况
-            if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
-                result.value = blackTotal * 10 - whiteTotal;
+            if (depth >= MAX_DEPTH) {
+                if (blackMax.type >= ChessType.DEAD_FOUR) {
+                    result.value = Score.BLACK_WIN;
+                    result.bestMove = blackMax.candidates![0];
+                } else {
+                    result.value = blackTotal * 10 - whiteTotal;
+                }
                 return result;
             }
 
@@ -147,7 +77,7 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj);
+            const toTraversePoints = getToTraversePoints([], newObj);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -164,13 +94,16 @@ export default class AI {
                 scoreComputer.restore();
                 if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
-                    result.bestMove = [y, x];
+                    if (result.value !== Score.BLACK_WIN){
+                        result.bestMove = [y, x];
+                    }
                     if (result.value >= beta) {
                         break;
                     }
                 } else if (res.value === result.value && !result.bestMove.length) {
-                    // result.bestMove = res.bestMove;
-                    result.bestMove = [y, x];
+                    // result.bestMove = [y, x];
+                    result.bestMove = res.bestMove;
+
                     // tothink
                     // 这里如果res.value === BLACK_LOSE，好像可以跳出break
                 }
@@ -199,69 +132,15 @@ export default class AI {
                 killItems: whiteKillItems
             } = scoreComputer.getTotalScore(Color.WHITE);
 
-            if (whiteMax.type === ChessType.ALIVE_FOUR
-                || whiteMax.type === ChessType.DEAD_FOUR) {
-                result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.candidates![0];
-                return result;
-            }
-            if (blackMax.type === ChessType.ALIVE_FOUR) {
-                result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.candidates![0];
-                return result;
-            }
-            let killPoints: number[][] = [];
-            if (blackMax.type === ChessType.DEAD_FOUR) {
-                killPoints = blackMax.candidates!;
-            } else if (whiteMax.type === ChessType.ALIVE_THREE) {
-                result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.keyCandidates![0];
-                return result;
-            } else {
-                let whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
-                if (whiteRushFourPoint) {
-                    result.value = Score.BLACK_LOSE;
-                    result.bestMove = whiteRushFourPoint;
-                    return result;
-                }
-                if (blackMax.type === ChessType.ALIVE_THREE) {
-                    if (!blackMax.candidates) {
-                        console.error('blackMax.candidates is empty')
-                    }
-                    killPoints = [
-                        ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                        ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])
-                    ];
-                } else if (blackMax.type === ChessType.DEAD_THREE) {
-                    let blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
-                    if (blackRushFourPoint) {
-                        killPoints = [
-                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            blackRushFourPoint
-                        ];
-                    }
-                } else {
-                    if (whiteKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
-                        if (whiteDoubleThreePoint) {
-                            result.value = Score.BLACK_LOSE;
-                            result.bestMove = whiteDoubleThreePoint;
-                            return result;
-                        }
-                    }
-                    let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
-                    if (blackDoubleThreePoint) {
-                        killPoints = [
-                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
-                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
-                        ];
-                    }
-                }
-            }
 
-            if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
-                result.value = blackTotal - whiteTotal * 10;
+            if (depth >= MAX_DEPTH) {
+                if (whiteMax.type >= ChessType.DEAD_FOUR) {
+                    result.value = Score.BLACK_LOSE;
+                    result.bestMove = whiteMax.candidates![0];
+                } else {
+                    let val = whiteTotal < 1000 ? 0 : whiteTotal;
+                    result.value = blackTotal - val * 10;
+                }
                 return result;
             }
 
@@ -269,9 +148,12 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj);
+            const toTraversePoints = getToTraversePoints([], newObj);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
+                if (y === 5 && x === 9) {
+                    // debugger
+                }
                 board.downChess(y, x, Color.WHITE);
                 let maxType = scoreComputer.downChessFake(y, x, Color.WHITE);
                 if (maxType === ChessType.FIVE) {
@@ -286,13 +168,15 @@ export default class AI {
                 scoreComputer.restore();
                 if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
-                    result.bestMove = [y, x];
+                    if (result.value !== Score.BLACK_LOSE){
+                        result.bestMove = [y, x];
+                    }
                     if (result.value <= alpha) {
                         break;
                     }
                 } else if (res.value === result.value && !result.bestMove.length) {
-                    result.bestMove = [y, x];
-                    // result.bestMove = res.bestMove;
+                    // result.bestMove = [y, x];
+                    result.bestMove = res.bestMove;
                 }
             }
             return result;

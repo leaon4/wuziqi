@@ -82,7 +82,7 @@ export default class ScoreComputer {
         console.log(Object.keys(scoreMap).length);
         // for (let code in scoreMap) {
         //     if (scoreMap[code].type === ChessType.ALIVE_TWO) {
-        //         console.log(code, scoreMap[code].candidates);
+        //         console.log(code, scoreMap[code]);
         //     }
         // }
         function permutation(start: number, end: number) {
@@ -173,7 +173,8 @@ export default class ScoreComputer {
                     } else {
                         scoreMap[code] = {
                             level: 4,
-                            value: log.value / 100 - (log.count > 1 ? 0 : 2000),
+                            // value: log.value / 100 - (log.count > 2 ? 0 : 2000),
+                            value: Math.min(13000, log.value / 100 - (2 - log.count) * 1000),
                             type: ChessType.ALIVE_TWO
                         };
                     }
