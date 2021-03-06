@@ -14,7 +14,7 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 3,
+        public MAX_DEPTH = 1,
         public KILL_DEPTH = 1
     ) {
         this.reset();
@@ -123,19 +123,14 @@ export default class AI {
                 board.restore(y, x);
                 scoreComputer.restore();
                 if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
-                    result = res;
-                    if (result.value !== Score.BLACK_WIN) {
-                        result.bestMove = [y, x];
-                    }
+                    result.value = res.value;
+                    result.depth = res.depth;
+                    result.bestMove = [y, x];
                     if (result.value >= beta) {
                         break;
                     }
-                } else if (res.value === result.value && !result.bestMove.length) {
-                    // result.bestMove = [y, x];
+                } else if (!result.bestMove.length) {
                     result.bestMove = res.bestMove;
-
-                    // tothink
-                    // 这里如果res.value === BLACK_LOSE，好像可以跳出break
                 }
             }
             return result;
@@ -200,9 +195,6 @@ export default class AI {
             const toTraversePoints = getToTraversePoints([], newObj);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
-                if (y === 5 && x === 9) {
-                    // debugger
-                }
                 board.downChess(y, x, Color.WHITE);
                 let maxType = scoreComputer.downChessFake(y, x, Color.WHITE);
                 if (maxType === ChessType.FIVE) {
@@ -216,15 +208,13 @@ export default class AI {
                 board.restore(y, x);
                 scoreComputer.restore();
                 if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
-                    result = res;
-                    if (result.value !== Score.BLACK_LOSE) {
-                        result.bestMove = [y, x];
-                    }
+                    result.value = res.value;
+                    result.depth = res.depth;
+                    result.bestMove = [y, x];
                     if (result.value <= alpha) {
                         break;
                     }
-                } else if (res.value === result.value && !result.bestMove.length) {
-                    // result.bestMove = [y, x];
+                } else if (!result.bestMove.length) {
                     result.bestMove = res.bestMove;
                 }
             }
