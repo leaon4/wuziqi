@@ -1,7 +1,7 @@
 import { Color, Score } from '../src/modules/definition';
 import TestUtil from './testUtils';
 
-const util = new TestUtil(1, 1, 1);
+const util = new TestUtil(2, 1, 1);
 const { board, score } = util;
 
 test('init', () => {

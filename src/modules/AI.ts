@@ -14,7 +14,7 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 4,
+        public MAX_DEPTH = 3,
         public KILL_DEPTH = 1
     ) {
         this.reset();
@@ -51,12 +51,12 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            const {
+            let {
                 max: blackMax,
                 total: blackTotal,
                 killItems: blackKillItems
             } = scoreComputer.getTotalScore(Color.BLACK);
-            const {
+            let {
                 max: whiteMax,
                 total: whiteTotal,
                 killItems: whiteKillItems
@@ -64,10 +64,40 @@ export default class AI {
 
 
             if (depth >= MAX_DEPTH) {
+                // 能直接判断输赢的分支其实都不存在，在剪枝里就处理了
                 if (blackMax.type >= ChessType.DEAD_FOUR) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackMax.candidates![0];
                 } else {
+                    // 黑已有冲四      赢，和已有死四一样。
+                    // 黑已有双活三    除非白有死四，否则赢，和已有活三一样，不用加分。
+                    // 黑会有冲四      除非白有死四，否则赢，因此分值+死四的一半。
+                    // 黑会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
+
+                    // 白已有冲四      输。
+                    // 白已有双活三    除非自己更快（有死三以上），并且不能一个子堵俩，否则输。其实不用加分。
+                    // 白会有冲四      除非自己更快，否则几乎是和死四一样的必防等级，因此分值+死四的一半。
+                    // 白会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
+
+                    let blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
+                    let whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                    let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
+                    let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
+                    if (blackRushFourPoint) {
+                        blackTotal += 10 ** 6 / 2;
+                    } else if (blackDoubleThreePoint) {
+                        blackTotal += 10 ** 4 * 5;
+                    }
+
+                    if (that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
+                        result.value = Score.BLACK_LOSE;
+                        result.bestMove = whiteMax.candidates![0];
+                        return result;
+                    } else if (whiteRushFourPoint) {
+                        whiteTotal += 10 ** 6 / 2;
+                    } else if (whiteDoubleThreePoint) {
+                        whiteTotal += 10 ** 4 * 5;
+                    }
                     result.value = blackTotal * 10 - whiteTotal;
                 }
                 return result;
@@ -94,7 +124,7 @@ export default class AI {
                 scoreComputer.restore();
                 if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
-                    if (result.value !== Score.BLACK_WIN){
+                    if (result.value !== Score.BLACK_WIN) {
                         result.bestMove = [y, x];
                     }
                     if (result.value >= beta) {
@@ -121,12 +151,12 @@ export default class AI {
                 return result;
             }
 
-            const {
+            let {
                 max: blackMax,
                 total: blackTotal,
                 killItems: blackKillItems
             } = scoreComputer.getTotalScore(Color.BLACK);
-            const {
+            let {
                 max: whiteMax,
                 total: whiteTotal,
                 killItems: whiteKillItems
@@ -138,6 +168,25 @@ export default class AI {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteMax.candidates![0];
                 } else {
+                    let blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
+                    let whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                    let blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
+                    let whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
+                    if (whiteRushFourPoint) {
+                        whiteTotal += 10 ** 6 / 2;
+                    } else if (whiteDoubleThreePoint) {
+                        whiteTotal += 10 ** 4 * 5;
+                    }
+
+                    if (that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
+                        result.value = Score.BLACK_WIN;
+                        result.bestMove = blackMax.candidates![0];
+                        return result;
+                    } else if (blackRushFourPoint) {
+                        blackTotal += 10 ** 6 / 2;
+                    } else if (blackDoubleThreePoint) {
+                        blackTotal += 10 ** 4 * 5;
+                    }
                     let val = whiteTotal < 1000 ? 0 : whiteTotal;
                     result.value = blackTotal - val * 10;
                 }
@@ -168,7 +217,7 @@ export default class AI {
                 scoreComputer.restore();
                 if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
                     result = res;
-                    if (result.value !== Score.BLACK_LOSE){
+                    if (result.value !== Score.BLACK_LOSE) {
                         result.bestMove = [y, x];
                     }
                     if (result.value <= alpha) {
@@ -262,6 +311,45 @@ export default class AI {
                     uniqObj[key] = true;
                 }
             }
+        }
+    }
+    private alreadyHasRushFour(
+        max: BookkeepingItem,
+        killItems: Record<number, BookkeepingItem[]>,
+        color: Color
+    ) {
+        // 只要有双死四，死四活三存在，并且不能被一个子全堵上，为true;
+        if (max.type < ChessType.DEAD_FOUR) {
+            return false;
+        }
+        let deadFourItems = killItems[ChessType.DEAD_FOUR];
+        let aliveThreeItems = killItems[ChessType.ALIVE_THREE];
+        if (deadFourItems.length + aliveThreeItems.length < 2) {
+            return false;
+        }
+        for (let i = 0; i < deadFourItems.length; i++) {
+            let d4i = deadFourItems[i];
+            for (let j = 0; j < deadFourItems.length; j++) {
+                if (i === j) {
+                    continue;
+                }
+                let d4j = deadFourItems[j];
+                if (hasKillPoint(d4i, d4j)) {
+                    return true;
+                }
+            }
+            for (let j = 0; j < aliveThreeItems.length; j++) {
+                let a3 = aliveThreeItems[j];
+                if (hasKillPoint(d4i, a3)) {
+                    return true;
+                }
+            }
+        }
+        function hasKillPoint(d4: BookkeepingItem, a3: BookkeepingItem): boolean {
+            let keyPoint = d4.candidates![0];
+            return a3.candidates!.every(p => {
+                return p[0] !== keyPoint[0] || p[1] !== keyPoint[1];
+            });
         }
     }
     private getToTraversePoints(killPoints: number[][], candidates: any) {
