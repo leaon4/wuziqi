@@ -14,7 +14,7 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 1,
+        public MAX_DEPTH = 3,
         public KILL_DEPTH = 1
     ) {
         this.reset();
@@ -69,15 +69,17 @@ export default class AI {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackMax.candidates![0];
                 } else {
-                    // 黑已有冲四      赢，和已有死四一样。
-                    // 黑已有双活三    除非白有死四，否则赢，和已有活三一样，不用加分。
-                    // 黑会有冲四      除非白有死四，否则赢，因此分值+死四的一半。
-                    // 黑会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
+                    // 黑已有冲四           赢，和已有死四一样。
+                    // 黑已有双活三         除非白有死四，否则赢，和已有活三一样，不用加分。
+                    // 黑会有一个冲四       除非白有死四，否则赢，因此分值+死四的一半。
+                    // 黑会同时有两个冲四   除非白有死四，否则赢，因此分值+活四。(太难判断了，先不做)
+                    // 黑会有双活三         无法定输赢，分值+10**4*5（多加5个活二）
 
                     // 白已有冲四      除非黑有既能堵死四，又趁机形成自己的死四或活四的棋，否则输。不用加分了。
                     // 白已有双活三    除非自己更快（有死三以上），并且不能一个子堵俩，否则输。其实不用加分。
-                    // 白会有冲四      除非自己更快，否则几乎是和死四一样的必防等级，因此分值+死四的一半。
-                    // 白会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
+                    // 白会有冲四      除非自己更快，否则几乎是和死四一样的必防等级，因此分值+死四*0.8。
+                    // 白会有双冲四    同上，因此不用特别处理
+                    // 白会有双活三    无法定输赢，分值+10**4*5（多加3个活二）
 
                     let blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
                     let whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
@@ -95,9 +97,9 @@ export default class AI {
                         result.bestMove = whiteMax.candidates![0];
                         return result;
                     } else if (whiteRushFourPoint) {
-                        whiteTotal += 10 ** 6 / 2;
+                        whiteTotal += 10 ** 6 * 0.8;
                     } else if (whiteDoubleThreePoint) {
-                        whiteTotal += 10 ** 4 * 5;
+                        whiteTotal += 10 ** 4 * 3;
                     }
                     result.value = blackTotal * 10 - whiteTotal;
                 }
@@ -180,13 +182,16 @@ export default class AI {
                         result.bestMove = blackMax.candidates![0];
                         return result;
                     } else if (blackRushFourPoint) {
-                        blackTotal += 10 ** 6 / 2;
+                        blackTotal += 10 ** 6 * 0.8;
                     } else if (blackDoubleThreePoint) {
-                        blackTotal += 10 ** 4 * 5;
+                        blackTotal += 10 ** 4 * 3;
                     }
                     let val = whiteTotal < 1000 ? 0 : whiteTotal;
                     result.value = blackTotal - val * 10;
                 }
+                // if (result.value===919957){
+                //     debugger
+                // }
                 return result;
             }
 
