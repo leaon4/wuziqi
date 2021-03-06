@@ -74,7 +74,7 @@ export default class AI {
                     // 黑会有冲四      除非白有死四，否则赢，因此分值+死四的一半。
                     // 黑会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
 
-                    // 白已有冲四      输。
+                    // 白已有冲四      除非黑有既能堵死四，又趁机形成自己的死四或活四的棋，否则输。不用加分了。
                     // 白已有双活三    除非自己更快（有死三以上），并且不能一个子堵俩，否则输。其实不用加分。
                     // 白会有冲四      除非自己更快，否则几乎是和死四一样的必防等级，因此分值+死四的一半。
                     // 白会有双活三    无法定输赢，分值+10**4*5（多加5个活二）
@@ -89,7 +89,8 @@ export default class AI {
                         blackTotal += 10 ** 4 * 5;
                     }
 
-                    if (that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
+                    if (blackMax.type < ChessType.DEAD_THREE
+                        && that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
                         result.value = Score.BLACK_LOSE;
                         result.bestMove = whiteMax.candidates![0];
                         return result;
@@ -173,7 +174,8 @@ export default class AI {
                         whiteTotal += 10 ** 4 * 5;
                     }
 
-                    if (that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
+                    if (whiteMax.type < ChessType.DEAD_THREE &&
+                        that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
                         result.value = Score.BLACK_WIN;
                         result.bestMove = blackMax.candidates![0];
                         return result;

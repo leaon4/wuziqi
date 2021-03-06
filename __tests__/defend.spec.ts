@@ -183,6 +183,7 @@ describe('防守', () => {
         const res = util.downChess(7, 7);
         const expectPoints: any = {
             '6,10': true,
+            '6,8': true,
         };
         expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
         expect(res.value).toBeLessThan(Score.BLACK_WIN);

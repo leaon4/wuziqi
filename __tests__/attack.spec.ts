@@ -115,7 +115,7 @@ describe('进攻', () => {
         const res = util.downChess(0, 0);
         const expectPoints: any = {
             '9,9': true,
-            '5,5': true,
+            '4,4': true,
         };
         expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
     });
@@ -144,6 +144,7 @@ describe('进攻', () => {
     });
 
     test('算杀', () => {
+        // todo 重写此用例
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
