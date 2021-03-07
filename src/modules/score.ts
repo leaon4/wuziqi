@@ -220,7 +220,7 @@ export default class ScoreComputer {
                         }
                     }
                 }
-            } else if (score.type === ChessType.ALIVE_THREE) {
+            } else if (score.type === ChessType.ALIVE_THREE || score.type === ChessType.ALIVE_TWO) {
                 const keyCandidates = [];
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0') {
@@ -251,16 +251,7 @@ export default class ScoreComputer {
                         }
                     }
                 }
-            } else if (score.type === ChessType.ALIVE_TWO) {
-                for (let i = 0; i < code.length; i++) {
-                    if (code[i] === '0') {
-                        const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                        if (this.getScore(newCode).type === ChessType.ALIVE_THREE) {
-                            candidates.push(i);
-                        }
-                    }
-                }
-            }
+            }   
             if (candidates.length) {
                 score.candidates = candidates;
             }

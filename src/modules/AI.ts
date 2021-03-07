@@ -111,21 +111,26 @@ export default class AI {
                     }
                     // 白子活三，黑子只能走自己的死三或堵
                     // todo 这种写法会有重复点，下面也相同，需要处理
-                    killPoints = [
-                        ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                        ...getKillPoints(whiteKillItems[ChessType.ALIVE_THREE])
-                    ];
+                    killPoints = that.unionPoints({
+                        itemGroup: [
+                            blackKillItems[ChessType.DEAD_THREE],
+                            whiteKillItems[ChessType.ALIVE_THREE]
+                        ]
+                    })
                 } else if (whiteMax.type === ChessType.DEAD_THREE) {
                     // 检查白子有无冲四的可能
                     whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteRushFourPoint.length) {
                         // 如果有，黑子只能走自己的死三或堵
                         // todo 可让whiteRushFourPoint排在前面
-                        killPoints = [
-                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
-                        ];
+                        killPoints = that.unionPoints({
+                            point: whiteRushFourPoint,
+                            itemGroup: [
+                                blackKillItems[ChessType.DEAD_THREE],
+                                whiteKillItems[ChessType.DEAD_THREE],
+                                whiteKillItems[ChessType.ALIVE_TWO]
+                            ]
+                        });
                     }
                 } else {
                     // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
@@ -146,11 +151,14 @@ export default class AI {
                     // 因此这里选棋其实是有遗漏的。但恐怕大部分情况下不会有问题）
                     whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteDoubleThreePoint.length) {
-                        killPoints = [
-                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
-                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
-                        ];
+                        killPoints = that.unionPoints({
+                            point: whiteDoubleThreePoint,
+                            itemGroup: [
+                                blackKillItems[ChessType.DEAD_THREE],
+                                whiteKillItems[ChessType.ALIVE_TWO]
+                            ],
+                            useKeyCandidates: blackKillItems[ChessType.ALIVE_TWO],
+                        });
                     }
                 }
             }
@@ -284,18 +292,23 @@ export default class AI {
                     if (!blackMax.candidates) {
                         console.error('blackMax.candidates is empty')
                     }
-                    killPoints = [
-                        ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                        ...getKillPoints(blackKillItems[ChessType.ALIVE_THREE])
-                    ];
+                    killPoints = that.unionPoints({
+                        itemGroup: [
+                            whiteKillItems[ChessType.DEAD_THREE],
+                            blackKillItems[ChessType.ALIVE_THREE]
+                        ],
+                    });
                 } else if (blackMax.type === ChessType.DEAD_THREE) {
                     blackRushFourPoint = that.hasRushFour(blackMax, blackKillItems, Color.BLACK);
                     if (blackRushFourPoint.length) {
-                        killPoints = [
-                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
-                        ];
+                        killPoints = that.unionPoints({
+                            point: blackRushFourPoint,
+                            itemGroup: [
+                                whiteKillItems[ChessType.DEAD_THREE],
+                                blackKillItems[ChessType.DEAD_THREE],
+                                blackKillItems[ChessType.ALIVE_TWO]
+                            ]
+                        });
                     }
                 } else {
                     if (whiteKillItems[ChessType.ALIVE_TWO].length > 1) {
@@ -308,11 +321,14 @@ export default class AI {
                     }
                     blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
                     if (blackDoubleThreePoint.length) {
-                        killPoints = [
-                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
-                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
-                        ];
+                        killPoints = that.unionPoints({
+                            point: blackDoubleThreePoint,
+                            itemGroup: [
+                                whiteKillItems[ChessType.DEAD_THREE],
+                                blackKillItems[ChessType.ALIVE_TWO]
+                            ],
+                            useKeyCandidates: whiteKillItems[ChessType.ALIVE_TWO],
+                        });
                     }
                 }
             }
@@ -415,8 +431,8 @@ export default class AI {
                 let p1 = d3.candidates![1];
                 for (let j = 0; j < aliveTwoItems.length; j++) {
                     let a2 = aliveTwoItems[j];
-                    for (let k = 0; k < a2.candidates!.length; k++) {
-                        let p2 = a2.candidates![k];
+                    for (let k = 0; k < a2.keyCandidates!.length; k++) {
+                        let p2 = a2.keyCandidates![k];
                         if (isSamePoint(p0, p2) && checkAnotherPoint(p1[0], p1[1], oppsiteColor)) {
                             return p2;
                         }
@@ -454,8 +470,8 @@ export default class AI {
             let uniqObj: Rec = {};
             for (let i = 0; i < aliveTwoItems.length; i++) {
                 let item = aliveTwoItems[i];
-                for (let j = 0; j < item.candidates!.length; j++) {
-                    let candidate = item.candidates![j];
+                for (let j = 0; j < item.keyCandidates!.length; j++) {
+                    let candidate = item.keyCandidates![j];
                     let key = candidate.join(',');
                     if (uniqObj[key]) {
                         return candidate;
@@ -575,5 +591,43 @@ export default class AI {
             });
         });
         return [...set].map(item => item.split(',').map(Number));
+    }
+    private unionPoints({
+        itemGroup,
+        point,
+        useKeyCandidates
+    }: {
+        itemGroup: BookkeepingItem[][],
+        point?: number[],
+        useKeyCandidates?: BookkeepingItem[]
+    }): number[][] {
+        const exists = new Array(255).fill(false);
+        const points: number[][] = [];
+        if (point) {
+            let key = point[0] * 15 + point[1];
+            exists[key] = true;
+            points.push(point);
+        }
+        itemGroup.forEach(items => {
+            items.forEach(item => {
+                item.candidates!.forEach(p => {
+                    let key = p[0] * 15 + p[1];
+                    if (!exists[key]) {
+                        exists[key] = true;
+                        points.push(p);
+                    }
+                });
+            });
+        });
+        useKeyCandidates && useKeyCandidates.forEach(item => {
+            item.keyCandidates!.forEach(p => {
+                let key = p[0] * 15 + p[1];
+                if (!exists[key]) {
+                    exists[key] = true;
+                    points.push(p);
+                }
+            });
+        });
+        return points;
     }
 }
