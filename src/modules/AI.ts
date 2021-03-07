@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 2,
-        public KILL_DEPTH = 10
+        public MAX_DEPTH = 3,
+        public KILL_DEPTH = 8
     ) {
         this.reset();
     }
@@ -121,7 +121,8 @@ export default class AI {
                         // 如果有，黑子只能走自己的死三或堵
                         killPoints = [
                             ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
-                            whiteRushFourPoint
+                            ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
+                            ...getKillPoints(whiteKillItems[ChessType.ALIVE_TWO]),
                         ];
                     }
                 } else {
@@ -286,7 +287,8 @@ export default class AI {
                     if (blackRushFourPoint.length) {
                         killPoints = [
                             ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
-                            blackRushFourPoint
+                            ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
+                            ...getKillPoints(blackKillItems[ChessType.ALIVE_TWO]),
                         ];
                     }
                 } else {
@@ -327,10 +329,11 @@ export default class AI {
                     blackTotal += 10 ** 4 * 3;
                 }
 
-                // 为了开局时能近身防守
                 if (whiteTotal < 1000) {
+                    // 为了开局时能近身防守
                     whiteTotal = 0;
                 } else if (whiteTotal < 30000) {
+                    // 开局时白棋应以防守为主，以免局势迅速恶化
                     whiteTotal *= 5;
                 } else {
                     whiteTotal *= 10;
