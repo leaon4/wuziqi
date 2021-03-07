@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 3,
-        public KILL_DEPTH = 8
+        public MAX_DEPTH = 5,
+        public KILL_DEPTH = 5
     ) {
         this.reset();
     }
@@ -106,6 +106,7 @@ export default class AI {
                 }
                 if (whiteMax.type === ChessType.ALIVE_THREE) {
                     if (!whiteMax.candidates) {
+                        // todo 这里已经赢了。但平时这种情况应该是不会出现的
                         console.error('whiteMax.candidates is empty')
                     }
                     // 白子活三，黑子只能走自己的死三或堵
@@ -117,8 +118,9 @@ export default class AI {
                 } else if (whiteMax.type === ChessType.DEAD_THREE) {
                     // 检查白子有无冲四的可能
                     whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
-                    if (whiteRushFourPoint && whiteRushFourPoint.length) {
+                    if (whiteRushFourPoint.length) {
                         // 如果有，黑子只能走自己的死三或堵
+                        // todo 可让whiteRushFourPoint排在前面
                         killPoints = [
                             ...getKillPoints(blackKillItems[ChessType.DEAD_THREE]),
                             ...getKillPoints(whiteKillItems[ChessType.DEAD_THREE]),
@@ -139,6 +141,9 @@ export default class AI {
                     // 同理，如果黑子没有死三和活二，则必防白子双三。
                     // 否则，则能下的点只有黑子的死三，活二和堵。
                     // todo 这里偷了懒，堵的点不精确，笼统的把白子活二堵点全部拿进去了
+
+                    // （注意，活二的candidates并不是堵点，而是像活三的keyCandidates一样的杀点，
+                    // 因此这里选棋其实是有遗漏的。但恐怕大部分情况下不会有问题）
                     whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteDoubleThreePoint.length) {
                         killPoints = [
@@ -188,7 +193,7 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj);
+            const toTraversePoints = getToTraversePoints(killPoints, newObj, blackKillItems, whiteKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -203,6 +208,7 @@ export default class AI {
                 let res = whiteThink(depth + 1, [y, x], result.value, newObj);
                 board.restore(y, x);
                 scoreComputer.restore();
+                // todo 这个depth没有意义了。只有在非黑赢时，value相等，才会更新，但非赢点的depth更新没有意义
                 if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
                     result.value = res.value;
                     result.depth = res.depth;
@@ -333,7 +339,7 @@ export default class AI {
                     // 为了开局时能近身防守
                     whiteTotal = 0;
                 } else if (whiteTotal < 30000) {
-                    // 开局时白棋应以防守为主，以免局势迅速恶化
+                    // 开局时白棋应以防守为主，以免局势因冒进而迅速恶化
                     whiteTotal *= 5;
                 } else {
                     whiteTotal *= 10;
@@ -346,7 +352,7 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj);
+            const toTraversePoints = getToTraversePoints(killPoints, newObj, whiteKillItems, blackKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
@@ -499,16 +505,49 @@ export default class AI {
             });
         }
     }
-    private getToTraversePoints(killPoints: number[][], candidates: any) {
+    private getToTraversePoints(
+        killPoints: number[][],
+        candidates: any,
+        killItems1st: Record<number, BookkeepingItem[]>,
+        killItems2nd: Record<number, BookkeepingItem[]>,
+    ) {
         if (killPoints.length) {
             return killPoints;
         }
-        let points = [];
+        const exists = new Array(255).fill(false);
+        const points: number[][] = [];
+        for (let t = ChessType.ALIVE_FOUR; t >= ChessType.ALIVE_TWO; t--) {
+            killItems1st[t].forEach(item => {
+                item.candidates!.forEach(p => {
+                    let key = p[0] * 15 + p[1];
+                    if (!exists[key]) {
+                        exists[key] = true;
+                        points.push(p);
+                    }
+                });
+            });
+            killItems2nd[t].forEach(item => {
+                item.candidates!.forEach(p => {
+                    let key = p[0] * 15 + p[1];
+                    if (!exists[key]) {
+                        exists[key] = true;
+                        points.push(p);
+                    }
+                });
+            });
+        }
+
+
         for (let i in candidates) {
             if (candidates[i] === false) {
                 continue;
             }
-            points.push(i.split(',').map(Number));
+            let p = i.split(',').map(Number);
+            let key = p[0] * 15 + p[1];
+            if (!exists[key]) {
+                exists[key] = true;
+                points.push(p);
+            }
         }
         return points;
     }
