@@ -167,7 +167,7 @@ export default class ScoreComputer {
                     if (log.type === ChessType.DEAD_FOUR) {
                         scoreMap[code] = {
                             level: 4,
-                            value: 12000,
+                            value: 13000,
                             type: ChessType.DEAD_THREE
                         };
                     } else {

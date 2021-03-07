@@ -14,8 +14,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 3,
-        public KILL_DEPTH = 7
+        public MAX_DEPTH = 2,
+        public KILL_DEPTH = 10
     ) {
         this.reset();
     }
@@ -187,7 +187,7 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints([], newObj);
+            const toTraversePoints = getToTraversePoints(killPoints, newObj);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -330,8 +330,12 @@ export default class AI {
                 // 为了开局时能近身防守
                 if (whiteTotal < 1000) {
                     whiteTotal = 0;
+                } else if (whiteTotal < 30000) {
+                    whiteTotal *= 5;
+                } else {
+                    whiteTotal *= 10;
                 }
-                result.value = blackTotal - whiteTotal * 10;
+                result.value = blackTotal - whiteTotal;
                 return result;
             }
 
@@ -339,7 +343,7 @@ export default class AI {
             let newObj = Object.create(obj);
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints([], newObj);
+            const toTraversePoints = getToTraversePoints(killPoints, newObj);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
