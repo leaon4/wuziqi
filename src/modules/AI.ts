@@ -105,6 +105,11 @@ export default class AI {
                     result.bestMove = whiteMax.candidates![0];
                     return result;
                 }
+                // 快速退出
+                if (depth === 0){
+                    result.bestMove = blackMax.candidates![0];
+                    return result;
+                }
                 // 白子有死四，这时只能先阻挡
                 killPoints = whiteMax.candidates!;
             } else if (blackMax.type === ChessType.ALIVE_THREE) {
@@ -307,6 +312,11 @@ export default class AI {
                 if (whiteMax.type < ChessType.DEAD_THREE
                     && that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
                     result.value = Score.BLACK_WIN;
+                    result.bestMove = blackMax.candidates![0];
+                    return result;
+                }
+                // 快速退出
+                if (depth === 0){
                     result.bestMove = blackMax.candidates![0];
                     return result;
                 }
