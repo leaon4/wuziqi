@@ -21,6 +21,7 @@ export default class Zobrist {
         return ~~(Math.random() * 1000000000);
     }
     has(y: number, x: number, color: Color): boolean {
+        return false;
         return this.code in this.cache;
     }
     get(y: number, x: number, color: Color): Pair {
@@ -28,7 +29,7 @@ export default class Zobrist {
         return this.cache[this.code];
     }
     set(result: Pair) {
-        this.cache[this.code] = result;
+        // this.cache[this.code] = result;
         return result;
     }
     go(y: number, x: number, color: Color) {
@@ -36,7 +37,6 @@ export default class Zobrist {
         this.code ^= map[y][x];
     }
     back(y: number, x: number, color: Color) {
-        // delete this.cache[this.code];
         this.go(y, x, color);
     }
 }

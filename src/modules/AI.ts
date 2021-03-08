@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 6,
-        public KILL_DEPTH = 6
+        public MAX_DEPTH = 5,
+        public KILL_DEPTH = 5
     ) {
         this.reset();
         (window as any).zobrist = this.zobrist;
@@ -41,10 +41,23 @@ export default class AI {
         } = this;
         const that = this;
         board.setCandidates(y, x, candidates);
-        const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
+        // const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
+        const result = iddfs();
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
         return result;
+
+        function iddfs(): Pair {
+            let result: Pair;
+            for (let i = MAX_DEPTH - 1; i >= 0; i--) {
+                result = whiteThink(i, [y, x], Score.BLACK_LOSE, candidates);
+                if (result.value === Score.BLACK_LOSE || result.value === Score.BLACK_WIN) {
+                    console.log(i)
+                    return result;
+                }
+            }
+            return result!;
+        }
 
         function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec): Pair {
             count++
