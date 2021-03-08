@@ -1,11 +1,11 @@
 import { Pair } from "./AI";
-import { Color } from "./definition";
+import { Color, Score } from "./definition";
 
 export default class Zobrist {
     black: number[][] = [];
     white: number[][] = [];
     code: number;
-    cache: Record<number, Pair> = {};
+    cache: Record<number, { result: Pair, depthMark: number }> = {};
     constructor() {
         this.code = this.getRandom();
         for (let y = 0; y < 15; y++) {
@@ -20,16 +20,19 @@ export default class Zobrist {
     getRandom() {
         return ~~(Math.random() * 1000000000);
     }
-    has(y: number, x: number, color: Color): boolean {
-        return false;
-        return this.code in this.cache;
+    has(y: number, x: number, color: Color, depthMark: number): boolean {
+        let res = this.cache[this.code]
+        return res && (res.depthMark <= depthMark
+            || res.result.value === Score.BLACK_WIN
+            || res.result.value === Score.BLACK_LOSE);
+        // return this.code in this.cache;
     }
     get(y: number, x: number, color: Color): Pair {
         // console.log(1)
-        return this.cache[this.code];
+        return this.cache[this.code].result;
     }
-    set(result: Pair) {
-        // this.cache[this.code] = result;
+    set(result: Pair, depthMark: number) {
+        this.cache[this.code] = { result, depthMark };
         return result;
     }
     go(y: number, x: number, color: Color) {

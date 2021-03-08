@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 5,
-        public KILL_DEPTH = 5
+        public MAX_DEPTH = 6,
+        public KILL_DEPTH = 6
     ) {
         this.reset();
         (window as any).zobrist = this.zobrist;
@@ -42,6 +42,7 @@ export default class AI {
         const that = this;
         board.setCandidates(y, x, candidates);
         // const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
+        let depthMark = -1;
         const result = iddfs();
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
@@ -49,10 +50,10 @@ export default class AI {
 
         function iddfs(): Pair {
             let result: Pair;
-            for (let i = MAX_DEPTH - 1; i >= 0; i--) {
-                result = whiteThink(i, [y, x], Score.BLACK_LOSE, candidates);
+            for (depthMark = MAX_DEPTH - 1; depthMark >= 0; depthMark--) {
+                result = whiteThink(depthMark, [y, x], Score.BLACK_LOSE, candidates);
                 if (result.value === Score.BLACK_LOSE || result.value === Score.BLACK_WIN) {
-                    console.log(i)
+                    console.warn(depthMark)
                     return result;
                 }
             }
@@ -69,7 +70,7 @@ export default class AI {
             if (board.isFull()) {
                 return result;
             }
-            if (zobrist.has(lastMove[0], lastMove[1], Color.WHITE)) {
+            if (zobrist.has(lastMove[0], lastMove[1], Color.WHITE, depthMark)) {
                 return zobrist.get(lastMove[0], lastMove[1], Color.WHITE);
             }
             let {
@@ -87,14 +88,14 @@ export default class AI {
                 // 黑子先手有四连的，必赢
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.candidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
             if (whiteMax.type === ChessType.ALIVE_FOUR) {
                 // 白子有活四，黑子无四连，则必输
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.candidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
 
@@ -110,7 +111,7 @@ export default class AI {
                     && that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteMax.candidates![0];
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     return result;
                 }
                 // 白子有死四，这时只能先阻挡
@@ -119,7 +120,7 @@ export default class AI {
                 // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.keyCandidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             } else {
                 // 先检查有无冲四的可能
@@ -127,7 +128,7 @@ export default class AI {
                 if (blackRushFourPoint.length) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackRushFourPoint;
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     return result;
                 }
                 if (whiteMax.type === ChessType.ALIVE_THREE) {
@@ -166,7 +167,7 @@ export default class AI {
                         if (blackDoubleThreePoint.length) {
                             result.value = Score.BLACK_WIN;
                             result.bestMove = blackDoubleThreePoint;
-                            // zobrist.set(result);
+                            zobrist.set(result, depthMark);
                             return result;
                         }
                     }
@@ -221,7 +222,7 @@ export default class AI {
                     whiteTotal += 10 ** 4 * 3;
                 }
                 result.value = blackTotal * 10 - whiteTotal;
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
 
@@ -230,6 +231,7 @@ export default class AI {
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
             const toTraversePoints = getToTraversePoints(killPoints, newObj, blackKillItems, whiteKillItems);
+            that.sort(toTraversePoints, Color.BLACK, depthMark);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -238,7 +240,7 @@ export default class AI {
                 if (maxType === ChessType.FIVE) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = [y, x];
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     board.restore(y, x);
                     scoreComputer.restore();
                     zobrist.back(y, x, Color.BLACK);
@@ -260,7 +262,7 @@ export default class AI {
                     result.bestMove = res.bestMove;
                 }
             }
-            zobrist.set(result);
+            zobrist.set(result, depthMark);
             return result;
         }
         function whiteThink(depth: number, lastMove: number[], alpha: number, obj: Rec): Pair {
@@ -274,7 +276,7 @@ export default class AI {
                 return result;
             }
 
-            if (zobrist.has(lastMove[0], lastMove[1], Color.BLACK)) {
+            if (zobrist.has(lastMove[0], lastMove[1], Color.BLACK, depthMark)) {
                 return zobrist.get(lastMove[0], lastMove[1], Color.BLACK);
             }
 
@@ -292,13 +294,13 @@ export default class AI {
             if (whiteMax.type >= ChessType.DEAD_FOUR) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.candidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
             if (blackMax.type === ChessType.ALIVE_FOUR) {
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.candidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
 
@@ -313,21 +315,21 @@ export default class AI {
                     && that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackMax.candidates![0];
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     return result;
                 }
                 killPoints = blackMax.candidates!;
             } else if (whiteMax.type === ChessType.ALIVE_THREE) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.keyCandidates![0];
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             } else {
                 whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
                 if (whiteRushFourPoint.length) {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteRushFourPoint;
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     return result;
                 }
                 if (blackMax.type === ChessType.ALIVE_THREE) {
@@ -358,7 +360,7 @@ export default class AI {
                         if (whiteDoubleThreePoint.length) {
                             result.value = Score.BLACK_LOSE;
                             result.bestMove = whiteDoubleThreePoint;
-                            // zobrist.set(result);
+                            zobrist.set(result, depthMark);
                             return result;
                         }
                     }
@@ -404,7 +406,7 @@ export default class AI {
                     whiteTotal *= 10;
                 }
                 result.value = blackTotal - whiteTotal;
-                // zobrist.set(result);
+                zobrist.set(result, depthMark);
                 return result;
             }
 
@@ -413,6 +415,7 @@ export default class AI {
             board.setCandidates(lastMove[0], lastMove[1], newObj);
 
             const toTraversePoints = getToTraversePoints(killPoints, newObj, whiteKillItems, blackKillItems);
+            that.sort(toTraversePoints, Color.WHITE, depthMark);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
@@ -421,7 +424,7 @@ export default class AI {
                 if (maxType === ChessType.FIVE) {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = [y, x];
-                    // zobrist.set(result);
+                    zobrist.set(result, depthMark);
                     board.restore(y, x);
                     scoreComputer.restore();
                     zobrist.back(y, x, Color.WHITE);
@@ -443,7 +446,7 @@ export default class AI {
                     result.bestMove = res.bestMove;
                 }
             }
-            zobrist.set(result);
+            zobrist.set(result, depthMark);
             return result;
         }
     }
@@ -679,5 +682,22 @@ export default class AI {
             });
         });
         return points;
+    }
+    sort(points: number[][], color: Color, depthMark: number) {
+        points.sort((a: number[], b: number[]) => {
+            let m = 0, n = 0;
+            this.zobrist.go(a[0], a[1], color);
+            if (this.zobrist.has(a[0], a[1], 0, 10)) {
+                m = this.zobrist.get(a[0], a[1], color).value;
+            }
+            this.zobrist.back(a[0], a[1], color);
+            this.zobrist.go(b[0], b[1], color);
+            if (this.zobrist.has(b[0], b[1], 0, 10)) {
+                n = this.zobrist.get(b[0], b[1], color).value;
+            }
+            this.zobrist.back(b[0], b[1], color);
+            return color === Color.BLACK ? n - m : m - n;
+            // return m - n;
+        })
     }
 }
