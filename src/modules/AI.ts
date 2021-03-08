@@ -6,7 +6,8 @@ import Zobrist from './zobrist';
 export type Pair = {
     value: Score,
     bestMove: number[],
-    depth: number
+    depth: number,
+    path: string[]
 }
 
 let candidates = {};
@@ -16,8 +17,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 6,
-        public KILL_DEPTH = 6,
+        public MAX_DEPTH = 3,
+        public KILL_DEPTH = 8,
         public zobristOpen = false
     ) {
         this.reset();
@@ -47,17 +48,32 @@ export default class AI {
         } = this;
         const that = this;
         board.setCandidates(y, x, candidates);
-        const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates);
+        // const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, []);
+        const result = findShortestResult();
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
         return result;
 
-        function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec): Pair {
+        function findShortestResult(): Pair {
+            let lastResult;
+            for (let depth = 0; depth < MAX_DEPTH; depth++) {
+                const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
+                if (result.value !== Score.BLACK_LOSE) {
+                    return lastResult || result;
+                }
+                lastResult = result;
+            }
+            return lastResult as Pair;
+        }
+
+        function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec, path: string[]): Pair {
+            path.push(lastMove.join(','))
             count++
             let result: Pair = {
                 value: Score.DRAW,
                 bestMove: [],
-                depth
+                depth,
+                path: path.slice()
             };
             if (board.isFull()) {
                 return result;
@@ -106,7 +122,7 @@ export default class AI {
                     return result;
                 }
                 // 快速退出
-                if (depth === 0){
+                if (depth === 0) {
                     result.bestMove = blackMax.candidates![0];
                     return result;
                 }
@@ -240,7 +256,11 @@ export default class AI {
                     }
                     return result;
                 }
-                let res = whiteThink(depth + 1, [y, x], result.value, newObj);
+                // if (path.toString() === "5,6,0,4,0,3,4,7") {
+                //     debugger
+                // }
+                let res = whiteThink(depth + 1, [y, x], result.value, newObj, path);
+                path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
                 if (that.zobristOpen) {
@@ -251,11 +271,19 @@ export default class AI {
                     result.value = res.value;
                     result.depth = res.depth;
                     result.bestMove = [y, x];
+                    result.path = res.path;
                     if (result.value >= beta) {
                         return result;
                     }
                 } else if (!result.bestMove.length) {
-                    result.bestMove = res.bestMove;
+                    if (res.value === Score.BLACK_LOSE) {
+                        // result.bestMove = res.bestMove;
+                        result.bestMove = [y, x];
+                    } else {
+                        result.bestMove = res.bestMove;
+                    }
+                    result.depth = res.depth;
+                    result.path = res.path;
                 }
             }
             if (that.zobristOpen) {
@@ -263,12 +291,14 @@ export default class AI {
             }
             return result;
         }
-        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: Rec): Pair {
+        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: Rec, path: string[]): Pair {
+            path.push(lastMove.join(','))
             count++
             let result: Pair = {
                 value: Score.DRAW,
                 bestMove: [],
-                depth
+                depth,
+                path: path.slice()
             };
             if (board.isFull()) {
                 return result;
@@ -316,7 +346,7 @@ export default class AI {
                     return result;
                 }
                 // 快速退出
-                if (depth === 0){
+                if (depth === 0) {
                     result.bestMove = blackMax.candidates![0];
                     return result;
                 }
@@ -430,7 +460,8 @@ export default class AI {
                     }
                     return result;
                 }
-                let res = blackThink(depth + 1, [y, x], result.value, newObj);
+                let res = blackThink(depth + 1, [y, x], result.value, newObj, path);
+                path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
                 if (that.zobristOpen) {
@@ -440,11 +471,19 @@ export default class AI {
                     result.value = res.value;
                     result.depth = res.depth;
                     result.bestMove = [y, x];
+                    result.path = res.path;
                     if (result.value <= alpha) {
                         return result;
                     }
                 } else if (!result.bestMove.length) {
-                    result.bestMove = res.bestMove;
+                    if (res.value === Score.BLACK_WIN) {
+                        // result.bestMove = res.bestMove;
+                        result.bestMove = [y, x];
+                    } else {
+                        result.bestMove = res.bestMove;
+                    }
+                    result.depth = res.depth;
+                    result.path = res.path;
                 }
             }
             if (that.zobristOpen) {
