@@ -6,6 +6,7 @@ import ScoreComputer from './score';
 export default class GobangInterface {
     private GRID_WIDTH = 30;
     ctx = null as unknown as CanvasRenderingContext2D;
+    currentColor = Color.WHITE;
     constructor(
         public canvas: HTMLCanvasElement,
         public position: HTMLDivElement,
@@ -23,10 +24,23 @@ export default class GobangInterface {
 
         this.drawMap();
         this.addPositionTip();
+        this.addBtnEvent();
         this.addDownChessEvent(board, ai, score);
         if (board.hasInitialMap) {
             this.downInitialChess(board);
         }
+    }
+    private addBtnEvent() {
+        const btn = document.getElementById('color-change-btn') as HTMLButtonElement;
+        btn.addEventListener('click', () => {
+            this.currentColor = this.currentColor === Color.BLACK
+                ? Color.WHITE
+                : Color.BLACK;
+            const text = document.getElementById('current-color') as HTMLElement;
+            text.textContent = this.currentColor === Color.BLACK
+                ? '黑'
+                : '白'
+        });
     }
     private downInitialChess(board: Board) {
         const { map } = board;
@@ -84,17 +98,19 @@ export default class GobangInterface {
             if (board.map[y][x]) {
                 return;
             }
-            // todo:先就让人下黑棋
-            this.downChess(y, x, Color.BLACK);
-            board.downChess(y, x, Color.BLACK);
+            this.downChess(y, x, this.currentColor);
+            board.downChess(y, x, this.currentColor);
             score.downChess(y, x);
             console.time('ai');
-            const res = ai.think(y, x);
+            const res = ai.think(y, x, this.currentColor);
             console.timeEnd('ai');
             console.log(res);
             const [y1, x1] = res.bestMove;
-            this.downChess(y1, x1, Color.WHITE);
-            board.downChess(y1, x1, Color.WHITE);
+            let oppsiteColor = this.currentColor === Color.BLACK
+                ? Color.WHITE
+                : Color.BLACK;
+            this.downChess(y1, x1, oppsiteColor);
+            board.downChess(y1, x1, oppsiteColor);
             score.downChess(y1, x1);
         });
     }
@@ -105,7 +121,7 @@ export default class GobangInterface {
         ctx.arc(GRID_WIDTH / 2 + x * GRID_WIDTH, GRID_WIDTH / 2 + y * GRID_WIDTH, 10, 0, 2 * Math.PI);
         ctx.fill();
     }
-    reset(){
+    reset() {
         // todo
     }
 }

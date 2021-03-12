@@ -17,7 +17,7 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 3,
+        public MAX_DEPTH = 4,
         public KILL_DEPTH = 8,
         public zobristOpen = false
     ) {
@@ -33,38 +33,40 @@ export default class AI {
             this.initCandidates(this.board);
         }
     }
-    think(y: number, x: number) {
+    think(y: number, x: number, humanColor: Color) {
         if (this.zobristOpen) {
             this.zobrist.cache = {};
         }
         let count = 0;
         const {
             board,
-            MAX_DEPTH, KILL_DEPTH,
+            MAX_DEPTH,
+            KILL_DEPTH,
             scoreComputer,
-            getKillPoints,
             getToTraversePoints,
             zobrist
         } = this;
         const that = this;
         board.setCandidates(y, x, candidates);
-        // const result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, []);
-        const result = findShortestResult();
+        const result = humanColor === Color.BLACK
+            ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, [])
+            : blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
+        // const result = findShortestResult();
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
         console.log('count: ', count)
         return result;
 
-        function findShortestResult(): Pair {
-            let lastResult;
-            for (let depth = 0; depth < MAX_DEPTH; depth++) {
-                const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
-                if (result.value !== Score.BLACK_LOSE) {
-                    return lastResult || result;
-                }
-                lastResult = result;
-            }
-            return lastResult as Pair;
-        }
+        // function findShortestResult(): Pair {
+        //     let lastResult;
+        //     for (let depth = 0; depth < MAX_DEPTH; depth++) {
+        //         const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
+        //         if (result.value !== Score.BLACK_LOSE) {
+        //             return lastResult || result;
+        //         }
+        //         lastResult = result;
+        //     }
+        //     return lastResult as Pair;
+        // }
 
         function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec, path: string[]): Pair {
             path.push(lastMove.join(','))
@@ -123,7 +125,7 @@ export default class AI {
                 }
                 // 快速退出
                 if (depth === 0) {
-                    result.bestMove = blackMax.candidates![0];
+                    result.bestMove = whiteMax.candidates![0];
                     return result;
                 }
                 // 白子有死四，这时只能先阻挡
