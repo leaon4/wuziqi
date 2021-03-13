@@ -17,8 +17,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 4,
-        public KILL_DEPTH = 8,
+        public MAX_DEPTH = 5,
+        public KILL_DEPTH = 10,
         public zobristOpen = false
     ) {
         this.reset();
@@ -47,7 +47,10 @@ export default class AI {
             zobrist
         } = this;
         const that = this;
-        board.setCandidates(y, x, candidates);
+        // y为-1代表无初始子，也就是让电脑执黑先走的情况
+        if (y > -1) {
+            board.setCandidates(y, x, candidates);
+        }
         const result = humanColor === Color.BLACK
             ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, [])
             : blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
@@ -56,17 +59,43 @@ export default class AI {
         console.log('count: ', count)
         return result;
 
-        // function findShortestResult(): Pair {
-        //     let lastResult;
-        //     for (let depth = 0; depth < MAX_DEPTH; depth++) {
-        //         const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
-        //         if (result.value !== Score.BLACK_LOSE) {
-        //             return lastResult || result;
-        //         }
-        //         lastResult = result;
-        //     }
-        //     return lastResult as Pair;
-        // }
+        function findShortestResult(): Pair {
+            if (humanColor === Color.BLACK) {
+                /* let result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, []);
+                if (result.value === Score.BLACK_LOSE) {
+                    result = whiteThink(0, [y, x], Score.BLACK_LOSE - 1, candidates, []);
+                }
+                return result; */
+
+                // 此算法不完美，因为第一次的全深度搜索，仍可能找到最短路径的胜利方法
+                // 有bug，因为killDepth还可能有延伸
+                let lastResult;
+                for (let depth = 0; depth < KILL_DEPTH; depth++) {
+                    const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
+                    if (result.value !== Score.BLACK_LOSE) {
+                        return lastResult || result;
+                    }
+                    lastResult = result;
+                }
+                return lastResult as Pair;
+            } else {
+                /* let result = blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
+                if (result.value === Score.BLACK_WIN) {
+                    result = blackThink(0, [y, x], Score.BLACK_WIN + 1, candidates, []);
+                }
+                return result; */
+
+                let lastResult;
+                for (let depth = 0; depth < KILL_DEPTH; depth++) {
+                    const result = blackThink(depth, [y, x], Score.BLACK_WIN, candidates, []);
+                    if (result.value !== Score.BLACK_WIN) {
+                        return lastResult || result;
+                    }
+                    lastResult = result;
+                }
+                return lastResult as Pair;
+            }
+        }
 
         function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec, path: string[]): Pair {
             path.push(lastMove.join(','))
@@ -258,9 +287,6 @@ export default class AI {
                     }
                     return result;
                 }
-                // if (path.toString() === "5,6,0,4,0,3,4,7") {
-                //     debugger
-                // }
                 let res = whiteThink(depth + 1, [y, x], result.value, newObj, path);
                 path.pop();
                 board.restore(y, x);
@@ -269,13 +295,17 @@ export default class AI {
                     zobrist.back(y, x, Color.BLACK);
                 }
                 // todo 这个depth没有意义了。只有在非黑赢时，value相等，才会更新，但非赢点的depth更新没有意义
-                if (res.value > result.value || (res.value === result.value && res.depth < result.depth)) {
+                if (res.value > result.value || (depth === 0 && res.value === result.value && res.depth < result.depth)) {
                     result.value = res.value;
                     result.depth = res.depth;
                     result.bestMove = [y, x];
                     result.path = res.path;
                     if (result.value >= beta) {
-                        return result;
+                        if (depth === 0 && result.value === Score.BLACK_WIN) {
+
+                        } else {
+                            return result;
+                        }
                     }
                 } else if (!result.bestMove.length) {
                     if (res.value === Score.BLACK_LOSE) {
@@ -469,13 +499,17 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.WHITE);
                 }
-                if (res.value < result.value || (res.value === result.value && res.depth < result.depth)) {
+                if (res.value < result.value || (depth === 0 && res.value === result.value && res.depth < result.depth)) {
                     result.value = res.value;
                     result.depth = res.depth;
                     result.bestMove = [y, x];
                     result.path = res.path;
                     if (result.value <= alpha) {
-                        return result;
+                        if (depth === 0 && result.value === Score.BLACK_LOSE) {
+
+                        } else {
+                            return result;
+                        }
                     }
                 } else if (!result.bestMove.length) {
                     if (res.value === Score.BLACK_WIN) {

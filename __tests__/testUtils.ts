@@ -19,7 +19,7 @@ export default class TestUtil {
     downChess(y: number, x: number, color = Color.BLACK) {
         this.board.downChess(y, x, color);
         this.score.downChess(y, x);
-        return this.ai.think(y, x);
+        return this.ai.think(y, x, color);
     }
     reset(map?: number[][]) {
         this.board.reset(map);

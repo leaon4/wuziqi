@@ -12,7 +12,8 @@ export default class GobangInterface {
         public position: HTMLDivElement,
         board: Board,
         ai: AI,
-        score: ScoreComputer
+        score: ScoreComputer,
+        public useToDrawMap = false
     ) {
         this.ctx = this.canvas.getContext('2d') as CanvasRenderingContext2D;
         this.init(board, ai, score);
@@ -25,7 +26,11 @@ export default class GobangInterface {
         this.drawMap();
         this.addPositionTip();
         this.addBtnEvent();
-        this.addDownChessEvent(board, ai, score);
+        if (this.useToDrawMap) {
+            this.addDrawMapEvent(board)
+        } else {
+            this.addDownChessEvent(board, ai, score);
+        }
         if (board.hasInitialMap) {
             this.downInitialChess(board);
         }
@@ -112,6 +117,17 @@ export default class GobangInterface {
             this.downChess(y1, x1, oppsiteColor);
             board.downChess(y1, x1, oppsiteColor);
             score.downChess(y1, x1);
+        });
+    }
+    private addDrawMapEvent(board: Board) {
+        const { canvas } = this;
+        canvas.addEventListener('click', e => {
+            const [y, x] = this.getMousePoint(e);
+            if (board.map[y][x]) {
+                return;
+            }
+            this.downChess(y, x, this.currentColor);
+            board.downChess(y, x, this.currentColor);
         });
     }
     private downChess(y: number, x: number, color: Color) {
