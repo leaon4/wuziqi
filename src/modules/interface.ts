@@ -6,7 +6,7 @@ import ScoreComputer from './score';
 export default class GobangInterface {
     private GRID_WIDTH = 30;
     ctx = null as unknown as CanvasRenderingContext2D;
-    currentColor = Color.WHITE;
+    currentColor = Color.BLACK;
     constructor(
         public canvas: HTMLCanvasElement,
         public position: HTMLDivElement,

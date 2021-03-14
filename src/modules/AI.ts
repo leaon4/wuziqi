@@ -17,8 +17,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 5,
-        public KILL_DEPTH = 10,
+        public MAX_DEPTH = 6,
+        public KILL_DEPTH = 6,
         public zobristOpen = false
     ) {
         this.reset();

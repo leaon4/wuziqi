@@ -48,5 +48,5 @@ const view = new GobangInterface(
     board,
     ai,
     score,
-    true
+    // true
 );
