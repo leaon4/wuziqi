@@ -39,7 +39,8 @@ export default class Board {
     }
     setCandidates(y: number, x: number, candidates: Rec): void {
         const { map } = this;
-        let key = y + ',' + x;
+        // let key = y + ',' + x;
+        let key = y * 15 + x;
         if (candidates.hasOwnProperty(key)) {
             delete candidates[key];
         } else if (candidates[key]) {
@@ -61,7 +62,7 @@ export default class Board {
         }
         function setCandidates(y: number, x: number) {
             if (y >= 0 && y < 15 && map[y][x] === 0) {
-                let key = y + ',' + x;
+                let key = y * 15 + x;
                 if (!candidates[key]) {
                     candidates[key] = true;
                 }

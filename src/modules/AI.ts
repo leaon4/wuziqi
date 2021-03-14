@@ -543,7 +543,7 @@ export default class AI {
                 let item = deadThreeItems[i];
                 for (let j = 0; j < item.candidates!.length; j++) {
                     let candidate = item.candidates![j];
-                    let key = candidate.join(',');
+                    let key = candidate[0] * 15 + candidate[1];
                     if (uniqObj[key]) {
                         return candidate;
                     }
@@ -603,7 +603,7 @@ export default class AI {
                 let item = aliveTwoItems[i];
                 for (let j = 0; j < item.keyCandidates!.length; j++) {
                     let candidate = item.keyCandidates![j];
-                    let key = candidate.join(',');
+                    let key = candidate[0] * 15 + candidate[1];
                     if (uniqObj[key]) {
                         return candidate;
                     }
@@ -654,7 +654,7 @@ export default class AI {
     }
     private getToTraversePoints(
         killPoints: number[][],
-        candidates: any,
+        candidates: Rec,
         killItems1st: Record<number, BookkeepingItem[]>,
         killItems2nd: Record<number, BookkeepingItem[]>,
     ) {
@@ -689,8 +689,8 @@ export default class AI {
             if (candidates[i] === false) {
                 continue;
             }
-            let p = i.split(',').map(Number);
-            let key = p[0] * 15 + p[1];
+            let key = +i;
+            let p = [~~(key / 15), key % 15];
             if (!exists[key]) {
                 exists[key] = true;
                 points.push(p);
