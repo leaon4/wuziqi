@@ -10,7 +10,14 @@ export type Pair = {
     path: string[]
 }
 
-let candidates = {};
+function initCandidatesMap() {
+    let map = []
+    for (let i = 0; i < 255; i++) {
+        map[i] = [false];
+    }
+    return map;
+}
+let candidatesMap: boolean[][] = initCandidatesMap();
 
 export default class AI {
     zobrist = undefined as unknown as Zobrist;
@@ -28,7 +35,7 @@ export default class AI {
         }
     }
     reset() {
-        candidates = {};
+        candidatesMap = initCandidatesMap();
         if (this.board.hasInitialMap) {
             this.initCandidates(this.board);
         }
@@ -49,13 +56,13 @@ export default class AI {
         const that = this;
         // y为-1代表无初始子，也就是让电脑执黑先走的情况
         if (y > -1) {
-            board.setCandidates(y, x, candidates);
+            board.setCandidatesFlat(y, x, candidatesMap);
         }
         const result = humanColor === Color.BLACK
-            ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, [])
-            : blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
+            ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidatesMap, [])
+            : blackThink(0, [y, x], Score.BLACK_WIN, candidatesMap, []);
         // const result = findShortestResult();
-        board.setCandidates(result.bestMove[0], result.bestMove[1], candidates);
+        board.setCandidatesFlat(result.bestMove[0], result.bestMove[1], candidatesMap);
         console.log('count: ', count)
         return result;
 
@@ -71,7 +78,7 @@ export default class AI {
                 // 有bug，因为killDepth还可能有延伸
                 let lastResult;
                 for (let depth = 0; depth < KILL_DEPTH; depth++) {
-                    const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidates, []);
+                    const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidatesMap, []);
                     if (result.value !== Score.BLACK_LOSE) {
                         return lastResult || result;
                     }
@@ -87,7 +94,7 @@ export default class AI {
 
                 let lastResult;
                 for (let depth = 0; depth < KILL_DEPTH; depth++) {
-                    const result = blackThink(depth, [y, x], Score.BLACK_WIN, candidates, []);
+                    const result = blackThink(depth, [y, x], Score.BLACK_WIN, candidatesMap, []);
                     if (result.value !== Score.BLACK_WIN) {
                         return lastResult || result;
                     }
@@ -97,7 +104,7 @@ export default class AI {
             }
         }
 
-        function blackThink(depth: number, lastMove: number[], beta: number, obj: Rec, path: string[]): Pair {
+        function blackThink(depth: number, lastMove: number[], beta: number, obj: boolean[][], path: string[]): Pair {
             path.push(lastMove.join(','))
             count++
             let result: Pair = {
@@ -266,10 +273,8 @@ export default class AI {
             }
 
             result.value = Score.BLACK_LOSE;
-            let newObj = Object.create(obj);
-            board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj, blackKillItems, whiteKillItems);
+            const toTraversePoints = getToTraversePoints(killPoints, obj, blackKillItems, whiteKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -287,10 +292,12 @@ export default class AI {
                     }
                     return result;
                 }
-                let res = whiteThink(depth + 1, [y, x], result.value, newObj, path);
+                board.setCandidates(y, x, obj);
+                let res = whiteThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
+                board.restoreCandidates(y, x, obj);
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.BLACK);
                 }
@@ -323,7 +330,7 @@ export default class AI {
             }
             return result;
         }
-        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: Rec, path: string[]): Pair {
+        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: boolean[][], path: string[]): Pair {
             path.push(lastMove.join(','))
             count++
             let result: Pair = {
@@ -471,10 +478,8 @@ export default class AI {
             }
 
             result.value = Score.BLACK_WIN;
-            let newObj = Object.create(obj);
-            board.setCandidates(lastMove[0], lastMove[1], newObj);
 
-            const toTraversePoints = getToTraversePoints(killPoints, newObj, whiteKillItems, blackKillItems);
+            const toTraversePoints = getToTraversePoints(killPoints, obj, whiteKillItems, blackKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
@@ -492,10 +497,12 @@ export default class AI {
                     }
                     return result;
                 }
-                let res = blackThink(depth + 1, [y, x], result.value, newObj, path);
+                board.setCandidates(y, x, obj);
+                let res = blackThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
+                board.restoreCandidates(y, x, obj);
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.WHITE);
                 }
@@ -654,7 +661,7 @@ export default class AI {
     }
     private getToTraversePoints(
         killPoints: number[][],
-        candidates: Rec,
+        candidates: boolean[][],
         killItems1st: Record<number, BookkeepingItem[]>,
         killItems2nd: Record<number, BookkeepingItem[]>,
     ) {
@@ -684,26 +691,26 @@ export default class AI {
             });
         }
 
-
-        for (let i in candidates) {
-            if (candidates[i] === false) {
-                continue;
-            }
-            let key = +i;
-            let p = [~~(key / 15), key % 15];
-            if (!exists[key]) {
-                exists[key] = true;
-                points.push(p);
+        for (let i = 0; i < candidates.length; i++) {
+            let stack = candidates[i];
+            if (stack[stack.length - 1]) {
+                let key = i;
+                let p = [~~(key / 15), key % 15];
+                if (!exists[key]) {
+                    exists[key] = true;
+                    points.push(p);
+                }
             }
         }
         return points;
     }
+    // todo
     private initCandidates(board: Board) {
         const { map } = board;
         for (let y = 0; y < 15; y++) {
             for (let x = 0; x < 15; x++) {
                 if (map[y][x]) {
-                    board.setCandidates(y, x, candidates);
+                    board.setCandidatesFlat(y, x, candidatesMap);
                 }
             }
         }
