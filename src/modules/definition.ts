@@ -14,3 +14,11 @@ export enum ChessType {
     /* 活四  10^8    */ALIVE_FOUR,
     /* 成五  10^10   */FIVE
 };
+
+/**
+ * 四个方向的简写定义
+ *  -  h  horizon
+ *  |  p  portrait
+ *  /  s  slash
+ *  \  b  back slash
+ */

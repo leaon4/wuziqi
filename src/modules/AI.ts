@@ -56,13 +56,13 @@ export default class AI {
         const that = this;
         // y为-1代表无初始子，也就是让电脑执黑先走的情况
         if (y > -1) {
-            board.setCandidatesFlat(y, x, candidatesMap);
+            board.setCandidates(y, x, candidatesMap);
         }
         const result = humanColor === Color.BLACK
             ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidatesMap, [])
             : blackThink(0, [y, x], Score.BLACK_WIN, candidatesMap, []);
         // const result = findShortestResult();
-        board.setCandidatesFlat(result.bestMove[0], result.bestMove[1], candidatesMap);
+        board.setCandidates(result.bestMove[0], result.bestMove[1], candidatesMap);
         console.log('count: ', count)
         return result;
 
@@ -135,13 +135,13 @@ export default class AI {
             if (blackMax.type >= ChessType.DEAD_FOUR) {
                 // 黑子先手有四连的，必赢
                 result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.candidates![0];
+                result.bestMove = blackMax.degradeCandidates![0];
                 return result;
             }
             if (whiteMax.type === ChessType.ALIVE_FOUR) {
                 // 白子有活四，黑子无四连，则必输
                 result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.candidates![0];
+                result.bestMove = whiteMax.degradeCandidates![0];
                 return result;
             }
 
@@ -156,20 +156,20 @@ export default class AI {
                 if (blackMax.type < ChessType.DEAD_THREE
                     && that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
                     result.value = Score.BLACK_LOSE;
-                    result.bestMove = whiteMax.candidates![0];
+                    result.bestMove = whiteMax.degradeCandidates![0];
                     return result;
                 }
                 // 快速退出
                 if (depth === 0) {
-                    result.bestMove = whiteMax.candidates![0];
+                    result.bestMove = whiteMax.degradeCandidates![0];
                     return result;
                 }
                 // 白子有死四，这时只能先阻挡
-                killPoints = whiteMax.candidates!;
+                killPoints = whiteMax.degradeCandidates!;
             } else if (blackMax.type === ChessType.ALIVE_THREE) {
                 // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
                 result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.keyCandidates![0];
+                result.bestMove = blackMax.upgradeCandidates![0];
                 return result;
             } else {
                 // 先检查有无冲四的可能
@@ -180,7 +180,7 @@ export default class AI {
                     return result;
                 }
                 if (whiteMax.type === ChessType.ALIVE_THREE) {
-                    if (!whiteMax.candidates) {
+                    if (!whiteMax.degradeCandidates) {
                         // todo 这里已经赢了。但平时这种情况应该是不会出现的
                         console.error('whiteMax.candidates is empty')
                     }
@@ -292,7 +292,7 @@ export default class AI {
                     }
                     return result;
                 }
-                board.setCandidates(y, x, obj);
+                board.setCandidatesFack(y, x, obj);
                 let res = whiteThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
@@ -362,12 +362,12 @@ export default class AI {
 
             if (whiteMax.type >= ChessType.DEAD_FOUR) {
                 result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.candidates![0];
+                result.bestMove = whiteMax.degradeCandidates![0];
                 return result;
             }
             if (blackMax.type === ChessType.ALIVE_FOUR) {
                 result.value = Score.BLACK_WIN;
-                result.bestMove = blackMax.candidates![0];
+                result.bestMove = blackMax.degradeCandidates![0];
                 return result;
             }
 
@@ -381,18 +381,18 @@ export default class AI {
                 if (whiteMax.type < ChessType.DEAD_THREE
                     && that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
                     result.value = Score.BLACK_WIN;
-                    result.bestMove = blackMax.candidates![0];
+                    result.bestMove = blackMax.degradeCandidates![0];
                     return result;
                 }
                 // 快速退出
                 if (depth === 0) {
-                    result.bestMove = blackMax.candidates![0];
+                    result.bestMove = blackMax.degradeCandidates![0];
                     return result;
                 }
-                killPoints = blackMax.candidates!;
+                killPoints = blackMax.degradeCandidates!;
             } else if (whiteMax.type === ChessType.ALIVE_THREE) {
                 result.value = Score.BLACK_LOSE;
-                result.bestMove = whiteMax.keyCandidates![0];
+                result.bestMove = whiteMax.upgradeCandidates![0];
                 return result;
             } else {
                 whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
@@ -402,7 +402,7 @@ export default class AI {
                     return result;
                 }
                 if (blackMax.type === ChessType.ALIVE_THREE) {
-                    if (!blackMax.candidates) {
+                    if (!blackMax.degradeCandidates) {
                         console.error('blackMax.candidates is empty')
                     }
                     killPoints = that.unionPoints({
@@ -497,7 +497,7 @@ export default class AI {
                     }
                     return result;
                 }
-                board.setCandidates(y, x, obj);
+                board.setCandidatesFack(y, x, obj);
                 let res = blackThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
@@ -548,8 +548,8 @@ export default class AI {
             let uniqObj: Rec = {};
             for (let i = 0; i < deadThreeItems.length; i++) {
                 let item = deadThreeItems[i];
-                for (let j = 0; j < item.candidates!.length; j++) {
-                    let candidate = item.candidates![j];
+                for (let j = 0; j < item.degradeCandidates!.length; j++) {
+                    let candidate = item.degradeCandidates![j];
                     let key = candidate[0] * 15 + candidate[1];
                     if (uniqObj[key]) {
                         return candidate;
@@ -565,12 +565,12 @@ export default class AI {
         if (aliveTwoItems.length) {
             for (let i = 0; i < deadThreeItems.length; i++) {
                 let d3 = deadThreeItems[i];
-                let p0 = d3.candidates![0];
-                let p1 = d3.candidates![1];
+                let p0 = d3.degradeCandidates![0];
+                let p1 = d3.degradeCandidates![1];
                 for (let j = 0; j < aliveTwoItems.length; j++) {
                     let a2 = aliveTwoItems[j];
-                    for (let k = 0; k < a2.keyCandidates!.length; k++) {
-                        let p2 = a2.keyCandidates![k];
+                    for (let k = 0; k < a2.upgradeCandidates!.length; k++) {
+                        let p2 = a2.upgradeCandidates![k];
                         if (isSamePoint(p0, p2) && checkAnotherPoint(p1[0], p1[1], oppsiteColor)) {
                             return p2;
                         }
@@ -608,8 +608,8 @@ export default class AI {
             let uniqObj: Rec = {};
             for (let i = 0; i < aliveTwoItems.length; i++) {
                 let item = aliveTwoItems[i];
-                for (let j = 0; j < item.keyCandidates!.length; j++) {
-                    let candidate = item.keyCandidates![j];
+                for (let j = 0; j < item.upgradeCandidates!.length; j++) {
+                    let candidate = item.upgradeCandidates![j];
                     let key = candidate[0] * 15 + candidate[1];
                     if (uniqObj[key]) {
                         return candidate;
@@ -653,8 +653,8 @@ export default class AI {
             }
         }
         function hasKillPoint(d4: BookkeepingItem, a3: BookkeepingItem): boolean {
-            let keyPoint = d4.candidates![0];
-            return a3.candidates!.every(p => {
+            let keyPoint = d4.degradeCandidates![0];
+            return a3.degradeCandidates!.every(p => {
                 return p[0] !== keyPoint[0] || p[1] !== keyPoint[1];
             });
         }
@@ -672,7 +672,7 @@ export default class AI {
         const points: number[][] = [];
         for (let t = ChessType.ALIVE_FOUR; t >= ChessType.ALIVE_TWO; t--) {
             killItems1st[t].forEach(item => {
-                item.candidates!.forEach(p => {
+                item.degradeCandidates!.forEach(p => {
                     let key = p[0] * 15 + p[1];
                     if (!exists[key]) {
                         exists[key] = true;
@@ -681,7 +681,7 @@ export default class AI {
                 });
             });
             killItems2nd[t].forEach(item => {
-                item.candidates!.forEach(p => {
+                item.degradeCandidates!.forEach(p => {
                     let key = p[0] * 15 + p[1];
                     if (!exists[key]) {
                         exists[key] = true;
@@ -710,7 +710,7 @@ export default class AI {
         for (let y = 0; y < 15; y++) {
             for (let x = 0; x < 15; x++) {
                 if (map[y][x]) {
-                    board.setCandidatesFlat(y, x, candidatesMap);
+                    board.setCandidates(y, x, candidatesMap);
                 }
             }
         }
@@ -720,11 +720,11 @@ export default class AI {
             return [];
         }
         if (items.length === 1) {
-            return items[0].candidates!
+            return items[0].degradeCandidates!
         }
         let set = new Set<string>();
         items.forEach(item => {
-            item.candidates!.forEach(p => {
+            item.degradeCandidates!.forEach(p => {
                 set.add(p.join(','));
             });
         });
@@ -748,7 +748,7 @@ export default class AI {
         }
         itemGroup.forEach(items => {
             items.forEach(item => {
-                item.candidates!.forEach(p => {
+                item.degradeCandidates!.forEach(p => {
                     let key = p[0] * 15 + p[1];
                     if (!exists[key]) {
                         exists[key] = true;
@@ -758,7 +758,7 @@ export default class AI {
             });
         });
         useKeyCandidates && useKeyCandidates.forEach(item => {
-            item.keyCandidates!.forEach(p => {
+            item.upgradeCandidates!.forEach(p => {
                 let key = p[0] * 15 + p[1];
                 if (!exists[key]) {
                     exists[key] = true;

@@ -1,10 +1,4 @@
-/**
- *  -  h  horizon
- *  |  p  portrait
- *  /  s  slash
- *  \  b  back slash
- */
-import { Color, Rec } from './definition';
+import { Color } from './definition';
 
 export default class Board {
     map: number[][] = [];
@@ -37,110 +31,56 @@ export default class Board {
         // todo
         return false;
     }
-    /* setCandidates(y: number, x: number, candidates: boolean[][]): void {
+    private _setCandidates(y: number, x: number, callBack: Function): void {
         const { map } = this;
-        let key = y * 15 + x;
-        if (candidates.hasOwnProperty(key)) {
-            delete candidates[key];
-        } else if (candidates[key]) {
-            candidates[key] = false;
-        }
+        const key = y * 15 + x;
+        callBack(key, false);
         for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
             // h
             setCandidates(y, x + i);
             setCandidates(y, x - i);
+
             // p
             setCandidates(y + i, x);
             setCandidates(y - i, x);
+
             // s
             setCandidates(y - i, x + i);
             setCandidates(y + i, x - i);
+
             // b
             setCandidates(y + i, x + i);
             setCandidates(y - i, x - i);
         }
         function setCandidates(y: number, x: number) {
             if (y >= 0 && y < 15 && map[y][x] === 0) {
-                let key = y * 15 + x;
-                if (!candidates[key]) {
-                    candidates[key] = true;
-                }
-            }
-        }
-    } */
-    setCandidatesFlat(y: number, x: number, candidatesMap: boolean[][]): void {
-        const { map } = this;
-        let key = y * 15 + x;
-        candidatesMap[key][0] = false;
-        for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
-            // h
-            setCandidates(y, x + i);
-            setCandidates(y, x - i);
-            // p
-            setCandidates(y + i, x);
-            setCandidates(y - i, x);
-            // s
-            setCandidates(y - i, x + i);
-            setCandidates(y + i, x - i);
-            // b
-            setCandidates(y + i, x + i);
-            setCandidates(y - i, x - i);
-        }
-        function setCandidates(y: number, x: number) {
-            if (y >= 0 && y < 15 && map[y][x] === 0) {
-                let key = y * 15 + x;
-                candidatesMap[key][0] = true;
+                const key = y * 15 + x;
+                callBack(key, true);
             }
         }
     }
+    /**
+     * 每当有一个棋子落下时，它本身的位置不能再下，因此置为false
+     * 它周围4个方向的棋子，根据MAX_CHESS_LENGTH的配置，只要还是空的，
+     * 就都能下，都添加进candidates
+     */
     setCandidates(y: number, x: number, candidatesMap: boolean[][]): void {
-        const { map } = this;
-        let key = y * 15 + x;
-        candidatesMap[key].push(false);
-        for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
-            // h
-            setCandidates(y, x + i);
-            setCandidates(y, x - i);
-            // p
-            setCandidates(y + i, x);
-            setCandidates(y - i, x);
-            // s
-            setCandidates(y - i, x + i);
-            setCandidates(y + i, x - i);
-            // b
-            setCandidates(y + i, x + i);
-            setCandidates(y - i, x - i);
-        }
-        function setCandidates(y: number, x: number) {
-            if (y >= 0 && y < 15 && map[y][x] === 0) {
-                let key = y * 15 + x;
-                candidatesMap[key].push(true);
-            }
-        }
+        this._setCandidates(y, x, (key: number, value: boolean) => {
+            candidatesMap[key][0] = value;
+        });
+    }
+    /**
+     * 在假设性落子阶段调用
+     * 以栈的方式记录candidatesMap，以便能快速恢复
+     */
+    setCandidatesFack(y: number, x: number, candidatesMap: boolean[][]): void {
+        this._setCandidates(y, x, (key: number, value: boolean) => {
+            candidatesMap[key].push(value);
+        });
     }
     restoreCandidates(y: number, x: number, candidatesMap: boolean[][]): void {
-        const { map } = this;
-        let key = y * 15 + x;
-        candidatesMap[key].pop();
-        for (let i = 1; i <= this.MAX_CHESS_LENGTH; i++) {
-            // h
-            setCandidates(y, x + i);
-            setCandidates(y, x - i);
-            // p
-            setCandidates(y + i, x);
-            setCandidates(y - i, x);
-            // s
-            setCandidates(y - i, x + i);
-            setCandidates(y + i, x - i);
-            // b
-            setCandidates(y + i, x + i);
-            setCandidates(y - i, x - i);
-        }
-        function setCandidates(y: number, x: number) {
-            if (y >= 0 && y < 15 && map[y][x] === 0) {
-                let key = y * 15 + x;
-                candidatesMap[key].pop();
-            }
-        }
+        this._setCandidates(y, x, (key: number) => {
+            candidatesMap[key].pop();
+        });
     }
 }

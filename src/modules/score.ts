@@ -1,13 +1,21 @@
 import Board from "./board";
 import { Color, ChessType } from "./definition";
 
+type ScoreMapItem = {
+    value: number;
+    type: ChessType;
+    level: number;
+    degradeCandidates?: number[];// 能使此code降级的点，用于堵。例'00101100'，1,3,6都可堵
+    upgradeCandidates?: number[];// 能使此code升级的点，用于攻。例'00101100'，只有3才可攻
+};
+
 export type BookkeepingItem = {
     code: string;
     value: number;
     type: ChessType;
     level: number;
-    candidates?: number[][];
-    keyCandidates?: number[][];
+    degradeCandidates?: number[][];
+    upgradeCandidates?: number[][];
 };
 
 type BookkeepingTable = Record<string, BookkeepingItem[] | null>;
@@ -19,16 +27,13 @@ type Bookkeeping = {
     b: BookkeepingTable;
 };
 
-type ScoreMapItem = {
-    value: number,
-    type: ChessType,
-    level: number,
-    candidates?: number[],
-    keyCandidates?: number[]
-};
-
 export default class ScoreComputer {
-    scoreMap: Record<string, ScoreMapItem> = {};
+    scoreMap: Record<string, ScoreMapItem> = {};// 记录所有的原始棋型，便于快速哈希检索
+
+    /**
+     * 下面两个Bookkeeping记录当前棋盘上四个方向的分值
+     * 分值实时跟进棋盘的变化，以便能快速统计出战场形势，或者得到杀点
+     */
     black: Bookkeeping = {
         h: {},
         p: {},
@@ -68,26 +73,19 @@ export default class ScoreComputer {
             this.computeTotalScore(Color.WHITE);
         }
     }
+    /**
+     * 算法：
+     * 先进行全排列，生成一个个的code。
+     * code从长到短，每个code含'1'的个数由多到少，依次去进行logScore
+     * 这样，生成的codes的顺序，ChessType正好是由大到小
+     * logScore中，依次将code的一个'0'位设为'1'，看它能不能升级，
+     * 由此来决定当前code的等级
+     */
     private generateScoreMap() {
-        const { scoreMap } = this;
-        const that = this;
         let arr: number[];
-        for (let i = 15; i >= 5; i--) {
-            arr = new Array(i).fill(1);
-            for (let j = i; j >= 0; j--) {
-                permutation(0, j);
-            }
-        }
-        this.addCandidatesToScoreMap();
-        console.log(Object.keys(scoreMap).length);
-        // for (let code in scoreMap) {
-        //     if (scoreMap[code].type === ChessType.ALIVE_TWO) {
-        //         console.log(code, scoreMap[code]);
-        //     }
-        // }
-        function permutation(start: number, end: number) {
+        const permutation = (start: number, end: number) => {
             if (end === arr.length) {
-                logScore(arr);
+                this.logScore(arr);
                 return;
             }
             for (let i = start; i <= end; i++) {
@@ -95,118 +93,139 @@ export default class ScoreComputer {
                 permutation(i + 1, end + 1);
                 arr[i] = 1;
             }
+        };
+
+        // i代表code的长度，由长到短进行permutation
+        // 当长度不足5时，没有意义再统计，都计分值为0
+        // 因此迭代顺序为15 -> 5
+        for (let i = 15; i >= 5; i--) {
+            arr = new Array(i).fill(1);
+            for (let j = i; j >= 0; j--) {
+                permutation(0, j);
+            }
         }
-        function logScore(arr: number[]) {
-            let codeArr = arr.slice();
-            let code = codeArr.join('');
-            let revCode = codeArr.reverse().join('');
-            if (revCode in scoreMap) {
-                return;
-            }
-            if (/11111/.test(code)) {
-                return;
-            }
-            let log: ScoreMapItem & { count: number } = {
-                value: 0,
-                type: 0,
-                level: 0,
-                count: 0,
-            };
-            for (let i = 0; i < code.length; i++) {
-                if (code[i] === '0') {
-                    let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                    let score = that.getScore(newCode);
-                    if (score.level > log.level) {
-                        log.level = score.level;
-                        log.value = score.value;
+
+        this.addCandidatesToScoreMap();
+
+        console.log(Object.keys(this.scoreMap).length);
+    }
+    private logScore(arr: number[]) {
+        const { scoreMap } = this;
+        let codeArr = arr.slice();
+        let code = codeArr.join('');
+
+        // 为节省空间，scoreMap不记录有镜像的code
+        let revCode = codeArr.reverse().join('');
+        if (revCode in scoreMap) {
+            return;
+        }
+
+        // 成五比较好判断，也不记录了
+        if (/11111/.test(code)) {
+            return;
+        }
+
+        // count记录能使当前code升级的位置的数量，这是个重要的评分标识
+        // 比如count为2的'000111000'，明显好于count为1的'000101100'
+        let log: ScoreMapItem & { count: number } = {
+            value: 0,
+            type: 0,
+            level: 0,
+            count: 0,
+        };
+        for (let i = 0; i < code.length; i++) {
+            if (code[i] === '0') {
+                let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                let score = this.getScore(newCode);
+                if (score.level > log.level) {
+                    log.level = score.level;
+                    log.value = score.value;
+                    log.type = score.type;
+                    log.count = 1;
+                } else if (score.level === log.level) {
+                    // tothink 以type还是value来比较?
+                    if (score.type > log.type || score.value > log.value) {
                         log.type = score.type;
-                        log.count = 1;
-                    } else if (score.level === log.level) {
-                        // tothink 以type还是value来比较
-                        if (score.type > log.type || score.value > log.value) {
-                            log.type = score.type;
-                            log.value = score.value;
-                        }
-                        log.count++;
+                        log.value = score.value;
                     }
+                    log.count++;
                 }
             }
-            /**
-             * 有两处成五，是活四
-             * 只有一处成五，是死四
-             * 只要有一处活四，是活三
-             * 只要能成死四，是死三
-             * 只要能成活三，是活二
-             * 有没有既能成活三又能成死四的？有'000010101'，应该优先算成死三
-             * 忽略对双活三，死四活三的处理
-             */
-            switch (log.level) {
-                case 10:
-                    if (log.count > 1) {
-                        scoreMap[code] = {
-                            level: 8,
-                            value: 10 ** 8,
-                            type: ChessType.ALIVE_FOUR,
-                        };
-                    } else {
-                        scoreMap[code] = {
-                            level: 6,
-                            value: 10 ** 6 + 500,
-                            type: ChessType.DEAD_FOUR
-                        };
-                    }
-                    break;
-                case 8:
+        }
+
+        /**
+         * 有两处成五，是活四
+         * 只有一处成五，是死四
+         * 只要有一处活四，是活三
+         * 只要能成死四，是死三
+         * 只要能成活三，是活二
+         * 有没有既能成活三又能成死四的？有'000010101'，应该优先算成死三
+         * 忽略对双活三，死四活三的处理
+         */
+        switch (log.level) {
+            case 10:
+                if (log.count > 1) {
+                    scoreMap[code] = {
+                        level: 8,
+                        value: 10 ** 8,
+                        type: ChessType.ALIVE_FOUR,
+                    };
+                } else {
                     scoreMap[code] = {
                         level: 6,
-                        value: 10 ** 6 - (log.count > 1 ? 0 : 200000),
-                        type: ChessType.ALIVE_THREE,
+                        value: 10 ** 6 + 500,
+                        type: ChessType.DEAD_FOUR
                     };
-                    break;
-                case 6:
-                    if (log.type === ChessType.DEAD_FOUR) {
-                        scoreMap[code] = {
-                            level: 4,
-                            value: 13000,
-                            type: ChessType.DEAD_THREE
-                        };
-                    } else {
-                        scoreMap[code] = {
-                            level: 4,
-                            // value: log.value / 100 - (log.count > 2 ? 0 : 2000),
-                            value: Math.min(13000, log.value / 100 - (2 - log.count) * 1000),
-                            type: ChessType.ALIVE_TWO
-                        };
-                    }
-                    break;
-                case 0:
+                }
+                break;
+            case 8:
+                scoreMap[code] = {
+                    level: 6,
+                    value: 10 ** 6 - (log.count > 1 ? 0 : 200000),
+                    type: ChessType.ALIVE_THREE,
+                };
+                break;
+            case 6:
+                if (log.type === ChessType.DEAD_FOUR) {
                     scoreMap[code] = {
-                        level: 0,
-                        value: 0,
-                        type: ChessType.ZERO
+                        level: 4,
+                        value: 13000,
+                        type: ChessType.DEAD_THREE
                     };
-                    break;
-                default:
+                } else {
                     scoreMap[code] = {
-                        level: log.level - 2,
-                        value: ~~(log.value / 100 - (log.count > 1 ? 0 : 20)),
-                        type: log.type - 2 // 省略细分
+                        level: 4,
+                        value: Math.min(13000, log.value / 100 - (2 - log.count) * 1000),
+                        type: ChessType.ALIVE_TWO
                     };
-                    break;
-            }
+                }
+                break;
+            case 0:
+                scoreMap[code] = {
+                    level: 0,
+                    value: 0,
+                    type: ChessType.ZERO
+                };
+                break;
+            default:
+                scoreMap[code] = {
+                    level: log.level - 2,
+                    value: ~~(log.value / 100 - (log.count > 1 ? 0 : 20)),
+                    type: log.type - 2 // 省略细分
+                };
         }
     }
     private addCandidatesToScoreMap() {
         const { scoreMap } = this;
         for (let code in scoreMap) {
             const score = scoreMap[code];
-            const candidates = [];
+            const degradeCandidates = [];
             if (score.type === ChessType.ALIVE_FOUR) {
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
                         const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
                         if (/11111/.test(newCode)) {
-                            candidates.push(i);
+                            degradeCandidates.push(i);
                         }
                     }
                 }
@@ -215,45 +234,42 @@ export default class ScoreComputer {
                     if (code[i] === '0' && (code[i + 1] === '1' || code[i - 1] === '1')) {
                         const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
                         if (/11111/.test(newCode)) {
-                            candidates.push(i);
+                            degradeCandidates.push(i);
                             break;
                         }
                     }
                 }
             } else if (score.type === ChessType.ALIVE_THREE || score.type === ChessType.ALIVE_TWO) {
-                const keyCandidates = [];
+                const upgradeCandidates = [];
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0') {
                         const left = this.getScore(code.slice(0, i));
                         const right = this.getScore(code.slice(i + 1));
                         if (left.level < score.level && right.level < score.level) {
-                            candidates.push(i);
+                            degradeCandidates.push(i);
                         }
                         const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
                         const newScore = this.getScore(newCode);
                         if (newScore.level > score.level) {
-                            keyCandidates.push(i);
+                            upgradeCandidates.push(i);
                         }
                     }
                 }
-                if (!keyCandidates.length) {
-                    console.error('error')
-                }
-                // 遇上活三加死四类的情况，candidates为空，因此在这里赋值
-                score.candidates = candidates;
-                score.keyCandidates = keyCandidates;
+                // 遇上活三加死四类的情况，degradeCandidates为空，因此在这里赋值
+                score.degradeCandidates = degradeCandidates;
+                score.upgradeCandidates = upgradeCandidates;
             } else if (score.type === ChessType.DEAD_THREE) {
                 for (let i = 0; i < code.length; i++) {
                     if (code[i] === '0') {
                         const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
                         if (this.getScore(newCode).type === ChessType.DEAD_FOUR) {
-                            candidates.push(i);
+                            degradeCandidates.push(i);
                         }
                     }
                 }
-            }   
-            if (candidates.length) {
-                score.candidates = candidates;
+            }
+            if (degradeCandidates.length) {
+                score.degradeCandidates = degradeCandidates;
             }
         }
     }
@@ -278,28 +294,35 @@ export default class ScoreComputer {
         let revCode = code.split('').reverse().join('');
         return this.scoreMap[revCode];
     }
+    /**
+     * 算法：
+     * 扫描四个方向，将指定颜色的棋子提取成只有0和1的code
+     * 再执行logItem
+     */
     computeTotalScore(color: Color) {
-        const { scoreMap, black, white } = this;
+        const { black, white } = this;
         const { map } = this.board;
         let code: string;
         const bookkeeping = color === Color.BLACK ? black : white;
         const that = this;
+
         // h -
         let y: number, x: number;
         for (y = 0; y < 15; y++) {
             code = '';
             for (x = 0; x < 15; x++) {
-                addCode(y, x, 'h', bookkeeping);
+                addCode(y, x, 'h');
             }
             if (code) {
                 this.logItem(code, y, x, 'h', bookkeeping);
             }
         }
+
         // p |
         for (x = 0; x < 15; x++) {
             code = '';
             for (y = 0; y < 15; y++) {
-                addCode(y, x, 'p', bookkeeping);
+                addCode(y, x, 'p');
             }
             if (code) {
                 this.logItem(code, y, x, 'p', bookkeeping);
@@ -311,7 +334,7 @@ export default class ScoreComputer {
             code = '';
             let y0 = Math.max(0, i - 14), x0 = Math.min(14, i);
             for (y = y0, x = x0; x >= 0 && y <= 14; x--, y++) {
-                addCode(y, x, 's', bookkeeping);
+                addCode(y, x, 's');
             }
             if (code) {
                 this.logItem(code, y, x, 's', bookkeeping);
@@ -323,19 +346,19 @@ export default class ScoreComputer {
             code = '';
             let y0 = Math.max(0, 14 - i), x0 = Math.max(0, i - 14);
             for (y = y0, x = x0; x <= 14 && y <= 14; x++, y++) {
-                addCode(y, x, 'b', bookkeeping);
+                addCode(y, x, 'b');
             }
             if (code) {
                 this.logItem(code, y, x, 'b', bookkeeping);
             }
         }
-        function addCode(y: number, x: number, dir: string, obj: Bookkeeping) {
+        function addCode(y: number, x: number, dir: string) {
             if (map[y][x] === 0) {
                 code += '0';
             } else if (map[y][x] === color) {
                 code += '1';
             } else if (code) {
-                that.logItem(code, y, x, dir, obj);
+                that.logItem(code, y, x, dir, bookkeeping);
                 code = '';
             }
         }
@@ -404,14 +427,24 @@ export default class ScoreComputer {
             }
         }
     }
-    private logItem(code: string, yEnd: number, xEnd: number, dir: string, obj: Bookkeeping, maxTypeOfThisPoint?: { type: ChessType }) {
+    /**
+     * 根据code生成BookkeepingItem，根据xEnd和yEnd生成存储位置key
+     * 还要将scoreMap中的原始candidates转换为具体在棋盘上的点
+     * 最后做记录
+     * 如果有maxTypeOfThisPoint，顺便做一下收集最大ChessType的操作
+     */
+    private logItem(
+        code: string,
+        yEnd: number,
+        xEnd: number,
+        dir: string,
+        book: Bookkeeping,
+        maxTypeOfThisPoint?: { type: ChessType }
+    ) {
+        if (code.length < 5 || !code.includes('1')) {
+            return;
+        }
         const { scoreMap } = this;
-        if (code.length < 5) {
-            return;
-        }
-        if (!code.includes('1')) {
-            return;
-        }
         const score = this.getScore(code);
         const isRev = score !== scoreMap[code];
         const item: BookkeepingItem = {
@@ -420,91 +453,48 @@ export default class ScoreComputer {
             type: score.type,
             level: score.level
         };
-
         let key = -1;
-        let book: BookkeepingTable;
+        let table = book[dir as 'h'];
+        let genPoint: ((_: number) => number[]);
         switch (dir) {
             case 'h':
-                if (score.level >= 4 && score.level <= 8) {
-                    item.candidates = score.candidates!.map(pos => {
-                        if (isRev) {
-                            pos = code.length - 1 - pos;
-                        }
-                        return [yEnd, xEnd - code.length + pos];
-                    });
-                    if (score.keyCandidates) {
-                        item.keyCandidates = score.keyCandidates.map(pos => {
-                            if (isRev) {
-                                pos = code.length - 1 - pos;
-                            }
-                            return [yEnd, xEnd - code.length + pos];
-                        });
-                    }
-                }
+                genPoint = (pos: number) => [yEnd, xEnd - code.length + pos];
                 key = yEnd;
-                book = obj.h;
                 break;
             case 'p':
-                if (score.level >= 4 && score.level <= 8) {
-                    item.candidates = score.candidates!.map(pos => {
-                        if (isRev) {
-                            pos = code.length - 1 - pos;
-                        }
-                        return [yEnd - code.length + pos, xEnd];
-                    });
-                    if (score.keyCandidates) {
-                        item.keyCandidates = score.keyCandidates.map(pos => {
-                            if (isRev) {
-                                pos = code.length - 1 - pos;
-                            }
-                            return [yEnd - code.length + pos, xEnd];
-                        });
-                    }
-                }
+                genPoint = (pos: number) => [yEnd - code.length + pos, xEnd];
                 key = xEnd;
-                book = obj.p;
                 break;
             case 's':
-                if (score.level >= 4 && score.level <= 8) {
-                    item.candidates = score.candidates!.map(pos => {
-                        if (isRev) {
-                            pos = code.length - 1 - pos;
-                        }
-                        return [yEnd - code.length + pos, xEnd + code.length - pos];
-                    });
-                    if (score.keyCandidates) {
-                        item.keyCandidates = score.keyCandidates.map(pos => {
-                            if (isRev) {
-                                pos = code.length - 1 - pos;
-                            }
-                            return [yEnd - code.length + pos, xEnd + code.length - pos];
-                        });
-                    }
-                }
+                genPoint = (pos: number) => [yEnd - code.length + pos, xEnd + code.length - pos];
                 key = xEnd + code.length + yEnd - code.length;
-                book = obj.s;
                 break;
             default: // case: 'b'
-                if (score.level >= 4 && score.level <= 8) {
-                    item.candidates = score.candidates!.map(pos => {
-                        if (isRev) {
-                            pos = code.length - 1 - pos;
-                        }
-                        return [yEnd - code.length + pos, xEnd - code.length + pos];
-                    });
-                    if (score.keyCandidates) {
-                        item.keyCandidates = score.keyCandidates.map(pos => {
-                            if (isRev) {
-                                pos = code.length - 1 - pos;
-                            }
-                            return [yEnd - code.length + pos, xEnd - code.length + pos];
-                        });
-                    }
-                }
+                genPoint = (pos: number) => [yEnd - code.length + pos, xEnd - code.length + pos];
                 key = 14 - (yEnd - code.length) + (xEnd - code.length);
-                book = obj.b;
         }
-        (book[key] || (book[key] = [])).push(item);
+
+        if (score.level >= 4 && score.level <= 8) {
+            const getCandidatesPoint = (candidates: number[], fn: (_: number) => number[]) => {
+                return candidates.map(pos => {
+                    if (isRev) {
+                        pos = code.length - 1 - pos;
+                    }
+                    return fn(pos);
+                });
+            };
+            item.degradeCandidates = getCandidatesPoint(
+                score.degradeCandidates!,
+                genPoint
+            );
+            score.upgradeCandidates && (item.upgradeCandidates = getCandidatesPoint(
+                score.upgradeCandidates!,
+                genPoint
+            ));
+        }
+
+        (table[key] || (table[key] = [])).push(item);
+
         if (maxTypeOfThisPoint && score.type > maxTypeOfThisPoint.type) {
             maxTypeOfThisPoint.type = score.type;
         }
