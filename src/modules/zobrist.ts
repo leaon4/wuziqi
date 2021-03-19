@@ -1,11 +1,11 @@
-import { Pair } from "./AI";
+import { Result } from "./AI";
 import { Color } from "./definition";
 
 export default class Zobrist {
     black: number[][] = [];
     white: number[][] = [];
     code: number;
-    cache: Record<number, Pair> = {};
+    cache: Record<number, Result> = {};
     constructor() {
         this.code = this.getRandom();
         for (let y = 0; y < 15; y++) {
@@ -23,11 +23,11 @@ export default class Zobrist {
     has(y: number, x: number, color: Color): boolean {
         return this.code in this.cache;
     }
-    get(y: number, x: number, color: Color): Pair {
+    get(y: number, x: number, color: Color): Result {
         // console.log(1)
         return this.cache[this.code];
     }
-    set(result: Pair) {
+    set(result: Result) {
         this.cache[this.code] = result;
         return result;
     }

@@ -108,6 +108,14 @@ export default class ScoreComputer {
         this.addCandidatesToScoreMap();
 
         console.log(Object.keys(this.scoreMap).length);
+        // for (let i in this.scoreMap) {
+        //     let score = this.scoreMap[i];
+        //     if (score.type >= ChessType.ALIVE_TWO) {
+        //         if (score.upgradeCandidates && score.upgradeCandidates!.length > score.degradeCandidates!.length) {
+        //             console.log(i, score);
+        //         }
+        //     }
+        // }
     }
     private logScore(arr: number[]) {
         const { scoreMap } = this;

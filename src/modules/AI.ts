@@ -3,24 +3,16 @@ import { Color, Score, Rec, ChessType } from "./definition";
 import ScoreComputer, { BookkeepingItem } from "./score";
 import Zobrist from './zobrist';
 
-export type Pair = {
+export type Result = {
     value: Score,
     bestMove: number[],
     depth: number,
     path: string[]
-}
-
-function initCandidatesMap() {
-    let map = []
-    for (let i = 0; i < 255; i++) {
-        map[i] = [false];
-    }
-    return map;
-}
-let candidatesMap: boolean[][] = initCandidatesMap();
+};
 
 export default class AI {
     zobrist = undefined as unknown as Zobrist;
+    candidatesMap: boolean[][] = [];
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
@@ -35,10 +27,17 @@ export default class AI {
         }
     }
     reset() {
-        candidatesMap = initCandidatesMap();
+        this.candidatesMap = this.createCandidatesMap();
         if (this.board.hasInitialMap) {
             this.initCandidates(this.board);
         }
+    }
+    private createCandidatesMap() {
+        let map = []
+        for (let i = 0; i < 255; i++) {
+            map[i] = [false];
+        }
+        return map;
     }
     think(y: number, x: number, humanColor: Color) {
         if (this.zobristOpen) {
@@ -46,11 +45,11 @@ export default class AI {
         }
         let count = 0;
         const {
+            candidatesMap,
             board,
             MAX_DEPTH,
             KILL_DEPTH,
             scoreComputer,
-            getToTraversePoints,
             zobrist
         } = this;
         const that = this;
@@ -66,7 +65,7 @@ export default class AI {
         console.log('count: ', count)
         return result;
 
-        function findShortestResult(): Pair {
+        function findShortestResult(): Result {
             if (humanColor === Color.BLACK) {
                 /* let result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, []);
                 if (result.value === Score.BLACK_LOSE) {
@@ -84,7 +83,7 @@ export default class AI {
                     }
                     lastResult = result;
                 }
-                return lastResult as Pair;
+                return lastResult as Result;
             } else {
                 /* let result = blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
                 if (result.value === Score.BLACK_WIN) {
@@ -100,14 +99,14 @@ export default class AI {
                     }
                     lastResult = result;
                 }
-                return lastResult as Pair;
+                return lastResult as Result;
             }
         }
 
-        function blackThink(depth: number, lastMove: number[], beta: number, obj: boolean[][], path: string[]): Pair {
+        function blackThink(depth: number, lastMove: number[], beta: number, obj: boolean[][], path: string[]): Result {
             path.push(lastMove.join(','))
             count++
-            let result: Pair = {
+            let result: Result = {
                 value: Score.DRAW,
                 bestMove: [],
                 depth,
@@ -153,6 +152,7 @@ export default class AI {
             if (whiteMax.type === ChessType.DEAD_FOUR) {
                 // 白已有冲四，除非黑有既能堵死四，又趁机形成自己的死四或活四的棋，否则输。
                 // todo 偷懒省略了"既能堵死四，又能趁机形成自己的死四或活四"
+                // 而简单以blackMax.type < ChessType.DEAD_THREE来判断了
                 if (blackMax.type < ChessType.DEAD_THREE
                     && that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
                     result.value = Score.BLACK_LOSE;
@@ -185,19 +185,20 @@ export default class AI {
                         console.error('whiteMax.candidates is empty')
                     }
                     // 白子活三，黑子只能走自己的死三或堵
-                    // todo 这种写法会有重复点，下面也相同，需要处理
                     killPoints = that.unionPoints({
                         itemGroup: [
                             blackKillItems[ChessType.DEAD_THREE],
                             whiteKillItems[ChessType.ALIVE_THREE]
                         ]
-                    })
+                    });
                 } else if (whiteMax.type === ChessType.DEAD_THREE) {
                     // 检查白子有无冲四的可能
                     whiteRushFourPoint = that.hasRushFour(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteRushFourPoint.length) {
                         // 如果有，黑子只能走自己的死三或堵
-                        // todo 可让whiteRushFourPoint排在前面
+                        // 堵不一定非要堵whiteRushFourPoint，只要把任意一个位置堵了，仍有机会
+                        // 但一定要去堵造成whiteRushFourPoint的两个code，这里偷懒省略了
+                        // 将所有堵点全放了进去
                         killPoints = that.unionPoints({
                             point: whiteRushFourPoint,
                             itemGroup: [
@@ -209,7 +210,7 @@ export default class AI {
                     }
                 } else {
                     // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
-                    // 因此先只考虑黑子没有死三时的双三情况
+                    // 因此先只考虑白子没有死三时的双三情况（else这里就是了）
                     if (blackKillItems[ChessType.ALIVE_TWO].length > 1) {
                         blackDoubleThreePoint = that.hasDoubleThreePoint(blackMax, blackKillItems, Color.BLACK);
                         if (blackDoubleThreePoint.length) {
@@ -221,9 +222,6 @@ export default class AI {
                     // 同理，如果黑子没有死三和活二，则必防白子双三。
                     // 否则，则能下的点只有黑子的死三，活二和堵。
                     // todo 这里偷了懒，堵的点不精确，笼统的把白子活二堵点全部拿进去了
-
-                    // （注意，活二的candidates并不是堵点，而是像活三的keyCandidates一样的杀点，
-                    // 因此这里选棋其实是有遗漏的。但恐怕大部分情况下不会有问题）
                     whiteDoubleThreePoint = that.hasDoubleThreePoint(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteDoubleThreePoint.length) {
                         killPoints = that.unionPoints({
@@ -232,7 +230,7 @@ export default class AI {
                                 blackKillItems[ChessType.DEAD_THREE],
                                 whiteKillItems[ChessType.ALIVE_TWO]
                             ],
-                            useKeyCandidates: blackKillItems[ChessType.ALIVE_TWO],
+                            useUpgradeCandidates: blackKillItems[ChessType.ALIVE_TWO],
                         });
                     }
                 }
@@ -274,7 +272,7 @@ export default class AI {
 
             result.value = Score.BLACK_LOSE;
 
-            const toTraversePoints = getToTraversePoints(killPoints, obj, blackKillItems, whiteKillItems);
+            const toTraversePoints = that.getToTraversePoints(killPoints, obj, blackKillItems, whiteKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -330,10 +328,10 @@ export default class AI {
             }
             return result;
         }
-        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: boolean[][], path: string[]): Pair {
+        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: boolean[][], path: string[]): Result {
             path.push(lastMove.join(','))
             count++
-            let result: Pair = {
+            let result: Result = {
                 value: Score.DRAW,
                 bestMove: [],
                 depth,
@@ -440,7 +438,7 @@ export default class AI {
                                 whiteKillItems[ChessType.DEAD_THREE],
                                 blackKillItems[ChessType.ALIVE_TWO]
                             ],
-                            useKeyCandidates: whiteKillItems[ChessType.ALIVE_TWO],
+                            useUpgradeCandidates: whiteKillItems[ChessType.ALIVE_TWO],
                         });
                     }
                 }
@@ -479,7 +477,7 @@ export default class AI {
 
             result.value = Score.BLACK_WIN;
 
-            const toTraversePoints = getToTraversePoints(killPoints, obj, whiteKillItems, blackKillItems);
+            const toTraversePoints = that.getToTraversePoints(killPoints, obj, whiteKillItems, blackKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
@@ -544,48 +542,50 @@ export default class AI {
             return [];
         }
         let deadThreeItems = killItems[ChessType.DEAD_THREE];
-        if (deadThreeItems.length > 1) {
-            let uniqObj: Rec = {};
-            for (let i = 0; i < deadThreeItems.length; i++) {
-                let item = deadThreeItems[i];
-                for (let j = 0; j < item.degradeCandidates!.length; j++) {
-                    let candidate = item.degradeCandidates![j];
-                    let key = candidate[0] * 15 + candidate[1];
-                    if (uniqObj[key]) {
-                        return candidate;
-                    }
-                    uniqObj[key] = true;
+        let uniqObj: Record<number, BookkeepingItem> = {};
+        for (let i = 0; i < deadThreeItems.length; i++) {
+            let item = deadThreeItems[i];
+            for (let j = 0; j < item.degradeCandidates!.length; j++) {
+                let candidate = item.degradeCandidates![j];
+                let key = candidate[0] * 15 + candidate[1];
+                if (uniqObj[key]) {
+                    // 有两个死三形成的冲四
+                    return candidate;
                 }
+                uniqObj[key] = item;
             }
         }
-        const { board, scoreComputer } = this;
+
         let aliveTwoItems = killItems[ChessType.ALIVE_TWO];
+        if (!aliveTwoItems.length) {
+            return [];
+        }
+
+        const { board, scoreComputer } = this;
         let oppsiteColor = color === Color.BLACK ? Color.WHITE : Color.BLACK;
-        // todo，这里复杂度过高，应该是能优化的
-        if (aliveTwoItems.length) {
-            for (let i = 0; i < deadThreeItems.length; i++) {
-                let d3 = deadThreeItems[i];
-                let p0 = d3.degradeCandidates![0];
-                let p1 = d3.degradeCandidates![1];
-                for (let j = 0; j < aliveTwoItems.length; j++) {
-                    let a2 = aliveTwoItems[j];
-                    for (let k = 0; k < a2.upgradeCandidates!.length; k++) {
-                        let p2 = a2.upgradeCandidates![k];
-                        if (isSamePoint(p0, p2) && checkAnotherPoint(p1[0], p1[1], oppsiteColor)) {
-                            return p2;
-                        }
-                        if (isSamePoint(p1, p2) && checkAnotherPoint(p0[0], p0[1], oppsiteColor)) {
-                            return p2;
-                        }
+
+        for (let j = 0; j < aliveTwoItems.length; j++) {
+            let a2 = aliveTwoItems[j];
+            for (let k = 0; k < a2.upgradeCandidates!.length; k++) {
+                let p2 = a2.upgradeCandidates![k];
+                let key = p2[0] * 15 + p2[1];
+                if (uniqObj[key]) {
+                    // 死三和活二的杀点有重合。但还需进一步检查对方堵死三时会不会形成自己的死四
+                    // 能形成的话，也不构成冲四活三
+                    let anotherPoint = uniqObj[key].degradeCandidates![0];
+                    if (anotherPoint[0] * 15 + anotherPoint[1] === key) {
+                        anotherPoint = uniqObj[key].degradeCandidates![1];
+                    }
+                    if (checkAnotherPoint(anotherPoint[0], anotherPoint[1], oppsiteColor)) {
+                        return p2;
                     }
                 }
             }
         }
         return [];
 
-        function isSamePoint(p1: number[], p2: number[]) {
-            return p1[0] === p2[0] && p1[1] === p2[1];
-        }
+        // 这个检查另一个点是否会让对方形成死四的的方法，冗余量很大
+        // 但因为冲四本来就是不常见的，因此应该也不会太耗性能，所以就这样吧
         function checkAnotherPoint(y: number, x: number, color: Color) {
             board.downChess(y, x, color);
             let maxType = scoreComputer.downChessFake(y, x, color);
@@ -594,6 +594,7 @@ export default class AI {
             return maxType < ChessType.DEAD_FOUR;
         }
     }
+    // 冲四和双三是可以放在一起判断的，可减少对活二点的遍历次数
     private hasDoubleThreePoint(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
@@ -614,18 +615,23 @@ export default class AI {
                     if (uniqObj[key]) {
                         return candidate;
                     }
+                    // 不像hasRushFour一样，忽略了对另一个点的检验。但因为别的地方对双三也做了
+                    // 很保守而安全的判定，因此也没有问题。
                     uniqObj[key] = true;
                 }
             }
         }
         return [];
     }
+    /**
+     * 判定方法：只要有双死四，死四活三存在，
+     * 并且不能被一个子全堵上（即杀点不能重合），为true;
+     */
     private alreadyHasRushFour(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
         color: Color
     ) {
-        // 只要有双死四，死四活三存在，并且不能被一个子全堵上，为true;
         if (max.type < ChessType.DEAD_FOUR) {
             return false;
         }
@@ -634,34 +640,26 @@ export default class AI {
         if (deadFourItems.length + aliveThreeItems.length < 2) {
             return false;
         }
+        let uniqObj: Rec = {};
         for (let i = 0; i < deadFourItems.length; i++) {
             let d4i = deadFourItems[i];
-            for (let j = 0; j < deadFourItems.length; j++) {
-                if (i === j) {
-                    continue;
-                }
-                let d4j = deadFourItems[j];
-                if (hasKillPoint(d4i, d4j)) {
-                    return true;
-                }
+            let [y, x] = d4i.degradeCandidates![0]
+            let key = y * 15 + x;
+            if (!uniqObj[key] && i > 0) {
+                return true;
             }
-            for (let j = 0; j < aliveThreeItems.length; j++) {
-                let a3 = aliveThreeItems[j];
-                if (hasKillPoint(d4i, a3)) {
-                    return true;
-                }
-            }
+            uniqObj[key] = true;
         }
-        function hasKillPoint(d4: BookkeepingItem, a3: BookkeepingItem): boolean {
-            let keyPoint = d4.degradeCandidates![0];
-            return a3.degradeCandidates!.every(p => {
-                return p[0] !== keyPoint[0] || p[1] !== keyPoint[1];
-            });
+        for (let j = 0; j < aliveThreeItems.length; j++) {
+            let a3 = aliveThreeItems[j];
+            if (a3.degradeCandidates!.every(p => !uniqObj[p[0] * 15 + p[1]])) {
+                return true;
+            }
         }
     }
     private getToTraversePoints(
         killPoints: number[][],
-        candidates: boolean[][],
+        candidatesMap: boolean[][],
         killItems1st: Record<number, BookkeepingItem[]>,
         killItems2nd: Record<number, BookkeepingItem[]>,
     ) {
@@ -672,100 +670,64 @@ export default class AI {
         const points: number[][] = [];
         for (let t = ChessType.ALIVE_FOUR; t >= ChessType.ALIVE_TWO; t--) {
             killItems1st[t].forEach(item => {
-                item.degradeCandidates!.forEach(p => {
-                    let key = p[0] * 15 + p[1];
-                    if (!exists[key]) {
-                        exists[key] = true;
-                        points.push(p);
-                    }
-                });
+                // tothink degradeCandidates?
+                item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
             });
             killItems2nd[t].forEach(item => {
-                item.degradeCandidates!.forEach(p => {
-                    let key = p[0] * 15 + p[1];
-                    if (!exists[key]) {
-                        exists[key] = true;
-                        points.push(p);
-                    }
-                });
+                item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
             });
         }
-
-        for (let i = 0; i < candidates.length; i++) {
-            let stack = candidates[i];
+        for (let i = 0; i < candidatesMap.length; i++) {
+            let stack = candidatesMap[i];
             if (stack[stack.length - 1]) {
-                let key = i;
-                let p = [~~(key / 15), key % 15];
-                if (!exists[key]) {
-                    exists[key] = true;
+                if (!exists[i]) {
+                    let p = [~~(i / 15), i % 15];
+                    exists[i] = true;
                     points.push(p);
                 }
             }
         }
         return points;
     }
-    // todo
     private initCandidates(board: Board) {
         const { map } = board;
         for (let y = 0; y < 15; y++) {
             for (let x = 0; x < 15; x++) {
                 if (map[y][x]) {
-                    board.setCandidates(y, x, candidatesMap);
+                    board.setCandidates(y, x, this.candidatesMap);
                 }
             }
         }
     }
-    private getKillPoints(items: BookkeepingItem[]): number[][] {
-        if (!items.length) {
-            return [];
-        }
-        if (items.length === 1) {
-            return items[0].degradeCandidates!
-        }
-        let set = new Set<string>();
-        items.forEach(item => {
-            item.degradeCandidates!.forEach(p => {
-                set.add(p.join(','));
-            });
-        });
-        return [...set].map(item => item.split(',').map(Number));
-    }
     private unionPoints({
         itemGroup,
         point,
-        useKeyCandidates
+        useUpgradeCandidates: useKeyCandidates
     }: {
         itemGroup: BookkeepingItem[][],
         point?: number[],
-        useKeyCandidates?: BookkeepingItem[]
+        useUpgradeCandidates?: BookkeepingItem[]
     }): number[][] {
         const exists = new Array(255).fill(false);
         const points: number[][] = [];
         if (point) {
-            let key = point[0] * 15 + point[1];
-            exists[key] = true;
-            points.push(point);
+            this.checkPoint(point, exists, points);
         }
         itemGroup.forEach(items => {
             items.forEach(item => {
-                item.degradeCandidates!.forEach(p => {
-                    let key = p[0] * 15 + p[1];
-                    if (!exists[key]) {
-                        exists[key] = true;
-                        points.push(p);
-                    }
-                });
+                item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
             });
         });
         useKeyCandidates && useKeyCandidates.forEach(item => {
-            item.upgradeCandidates!.forEach(p => {
-                let key = p[0] * 15 + p[1];
-                if (!exists[key]) {
-                    exists[key] = true;
-                    points.push(p);
-                }
-            });
+            item.upgradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
         });
         return points;
+    }
+    private checkPoint(p: number[], exists: boolean[], points: number[][]) {
+        let key = p[0] * 15 + p[1];
+        if (!exists[key]) {
+            exists[key] = true;
+            points.push(p);
+        }
     }
 }
