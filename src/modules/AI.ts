@@ -670,8 +670,14 @@ export default class AI {
         const points: number[][] = [];
         for (let t = ChessType.ALIVE_FOUR; t >= ChessType.ALIVE_TWO; t--) {
             killItems1st[t].forEach(item => {
-                // tothink degradeCandidates?
-                item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
+                // degradeCandidates和upgradeCandidates并不完全一样
+                // 先手方，应该关注自己的upgradeCandidates，
+                // 而对手，则只用关注degradeCandidates。这样在多数场景性能稍微有些提升
+                if (item.upgradeCandidates) {
+                    item.upgradeCandidates.forEach(p => this.checkPoint(p, exists, points));
+                } else {
+                    item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
+                }
             });
             killItems2nd[t].forEach(item => {
                 item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
