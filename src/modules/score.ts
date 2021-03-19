@@ -111,11 +111,11 @@ export default class ScoreComputer {
     }
     private logScore(arr: number[]) {
         const { scoreMap } = this;
-        let codeArr = arr.slice();
-        let code = codeArr.join('');
+        const codeArr = arr.slice();
+        const code = codeArr.join('');
 
         // 为节省空间，scoreMap不记录有镜像的code
-        let revCode = codeArr.reverse().join('');
+        const revCode = codeArr.reverse().join('');
         if (revCode in scoreMap) {
             return;
         }
@@ -127,7 +127,7 @@ export default class ScoreComputer {
 
         // count记录能使当前code升级的位置的数量，这是个重要的评分标识
         // 比如count为2的'000111000'，明显好于count为1的'000101100'
-        let log: ScoreMapItem & { count: number } = {
+        const log: ScoreMapItem & { count: number } = {
             value: 0,
             type: 0,
             level: 0,
@@ -135,8 +135,8 @@ export default class ScoreComputer {
         };
         for (let i = 0; i < code.length; i++) {
             if (code[i] === '0') {
-                let newCode = code.slice(0, i) + '1' + code.slice(i + 1);
-                let score = this.getScore(newCode);
+                const newCode = code.slice(0, i) + '1' + code.slice(i + 1);
+                const score = this.getScore(newCode);
                 if (score.level > log.level) {
                     log.level = score.level;
                     log.value = score.value;
@@ -291,7 +291,7 @@ export default class ScoreComputer {
         if (this.scoreMap[code]) {
             return this.scoreMap[code];
         }
-        let revCode = code.split('').reverse().join('');
+        const revCode = code.split('').reverse().join('');
         return this.scoreMap[revCode];
     }
     /**
@@ -363,18 +363,21 @@ export default class ScoreComputer {
             }
         }
     }
+    /**
+     * 算法和computeTotalScore一样，只是只对单独一点的四个方向做统计
+     */
     private logBookkeeping(y0: number, x0: number, color: Color): ChessType {
         const { black, white } = this;
         const { map } = this.board;
         const that = this;
         const bookkeeping = color === Color.BLACK ? black : white;
         let y: number, x: number;
-        let maxTypeOfThisPoint = { type: ChessType.ZERO };
+        const maxTypeOfThisPoint = { type: ChessType.ZERO };
 
         // h -
         let code = '';
         for (x = 0; x < 15; x++) {
-            addCode(y0, x, 'h', bookkeeping);
+            addCode(y0, x, 'h');
         }
         if (code) {
             this.logItem(code, y0, x, 'h', bookkeeping, maxTypeOfThisPoint);
@@ -383,7 +386,7 @@ export default class ScoreComputer {
         // p |
         code = '';
         for (y = 0; y < 15; y++) {
-            addCode(y, x0, 'p', bookkeeping);
+            addCode(y, x0, 'p');
         }
         if (code) {
             this.logItem(code, y, x0, 'p', bookkeeping, maxTypeOfThisPoint);
@@ -396,7 +399,7 @@ export default class ScoreComputer {
             x >= 0 && y <= 14;
             x--, y++
         ) {
-            addCode(y, x, 's', bookkeeping);
+            addCode(y, x, 's');
         }
         if (code) {
             this.logItem(code, y, x, 's', bookkeeping, maxTypeOfThisPoint);
@@ -409,20 +412,20 @@ export default class ScoreComputer {
             x <= 14 && y <= 14;
             x++, y++
         ) {
-            addCode(y, x, 'b', bookkeeping);
+            addCode(y, x, 'b');
         }
         if (code) {
             this.logItem(code, y, x, 'b', bookkeeping, maxTypeOfThisPoint);
         }
 
         return maxTypeOfThisPoint.type;
-        function addCode(y: number, x: number, dir: string, obj: Bookkeeping) {
+        function addCode(y: number, x: number, dir: string) {
             if (map[y][x] === 0) {
                 code += '0';
             } else if (map[y][x] === color) {
                 code += '1';
             } else if (code) {
-                that.logItem(code, y, x, dir, obj, maxTypeOfThisPoint);
+                that.logItem(code, y, x, dir, bookkeeping, maxTypeOfThisPoint);
                 code = '';
             }
         }
@@ -454,7 +457,7 @@ export default class ScoreComputer {
             level: score.level
         };
         let key = -1;
-        let table = book[dir as 'h'];
+        const table = book[dir as 'h'];
         let genPoint: ((_: number) => number[]);
         switch (dir) {
             case 'h':
@@ -516,7 +519,7 @@ export default class ScoreComputer {
         this.white.b = Object.create(this.white.b);
 
         this.clearScoreFake(y, x);
-        let res = [
+        const res = [
             this.logBookkeeping(y, x, Color.BLACK),
             this.logBookkeeping(y, x, Color.WHITE)
         ];
@@ -535,44 +538,38 @@ export default class ScoreComputer {
     }
     private clearScore(y: number, x: number) {
         const { black, white } = this;
-        let hKey = y,
+        const hKey = y,
             pKey = x,
             sKey = x + y,
             bKey = 14 - y + x;
-        deleteKey(black.h, hKey);
-        deleteKey(black.p, pKey);
-        deleteKey(black.s, sKey);
-        deleteKey(black.b, bKey);
+        delete black.h[hKey];
+        delete black.p[pKey];
+        delete black.s[sKey];
+        delete black.b[bKey];
 
-        deleteKey(white.h, hKey);
-        deleteKey(white.p, pKey);
-        deleteKey(white.s, sKey);
-        deleteKey(white.b, bKey);
-        function deleteKey(table: BookkeepingTable, key: number) {
-            delete table[key];
-        }
+        delete white.h[hKey];
+        delete white.p[pKey];
+        delete white.s[sKey];
+        delete white.b[bKey];
     }
     private clearScoreFake(y: number, x: number) {
         const { black, white } = this;
-        let hKey = y,
+        const hKey = y,
             pKey = x,
             sKey = x + y,
             bKey = 14 - y + x;
-        deleteKey(black.h, hKey);
-        deleteKey(black.p, pKey);
-        deleteKey(black.s, sKey);
-        deleteKey(black.b, bKey);
+        black.h[hKey] = null;
+        black.p[pKey] = null;
+        black.s[sKey] = null;
+        black.b[bKey] = null;
 
-        deleteKey(white.h, hKey);
-        deleteKey(white.p, pKey);
-        deleteKey(white.s, sKey);
-        deleteKey(white.b, bKey);
-        function deleteKey(table: BookkeepingTable, key: number) {
-            table[key] = null;
-        }
+        white.h[hKey] = null;
+        white.p[pKey] = null;
+        white.s[sKey] = null;
+        white.b[bKey] = null;
     }
     getTotalScore(color: Color) {
-        let book = color === Color.BLACK ? this.black : this.white;
+        const book = color === Color.BLACK ? this.black : this.white;
         let max = {
             type: -1,
         } as BookkeepingItem;
@@ -595,18 +592,16 @@ export default class ScoreComputer {
         };
         function traverse(table: BookkeepingTable) {
             for (let i in table) {
-                if (table[i]) {
-                    table[i]!.forEach(item => {
-                        // tothink value还是type
-                        if (item.type > max.type) {
-                            max = item;
-                        }
-                        total += item.value;
-                        if (item.type >= ChessType.ALIVE_TWO) {
-                            killItems[item.type].push(item);
-                        }
-                    });
-                }
+                table[i] && table[i]!.forEach(item => {
+                    // 取最大type问题
+                    if (item.type > max.type) {
+                        max = item;
+                    }
+                    total += item.value;
+                    if (item.type >= ChessType.ALIVE_TWO) {
+                        killItems[item.type].push(item);
+                    }
+                });
             }
         }
     }
