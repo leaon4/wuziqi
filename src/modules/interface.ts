@@ -38,9 +38,7 @@ export default class GobangInterface {
     private addBtnEvent() {
         const btn = document.getElementById('color-change-btn') as HTMLButtonElement;
         btn.addEventListener('click', () => {
-            this.currentColor = this.currentColor === Color.BLACK
-                ? Color.WHITE
-                : Color.BLACK;
+            this.currentColor = 3 - this.currentColor;
             const text = document.getElementById('current-color') as HTMLElement;
             text.textContent = this.currentColor === Color.BLACK
                 ? '黑'
@@ -111,9 +109,7 @@ export default class GobangInterface {
             console.timeEnd('ai');
             console.log(res);
             const [y1, x1] = res.bestMove;
-            let oppsiteColor = this.currentColor === Color.BLACK
-                ? Color.WHITE
-                : Color.BLACK;
+            let oppsiteColor = 3 - this.currentColor;
             this.downChess(y1, x1, oppsiteColor);
             board.downChess(y1, x1, oppsiteColor);
             score.downChess(y1, x1);

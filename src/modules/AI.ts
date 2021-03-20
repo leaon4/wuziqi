@@ -562,7 +562,7 @@ export default class AI {
         }
 
         const { board, scoreComputer } = this;
-        let oppsiteColor = color === Color.BLACK ? Color.WHITE : Color.BLACK;
+        let oppsiteColor = 3 - color;
 
         for (let j = 0; j < aliveTwoItems.length; j++) {
             let a2 = aliveTwoItems[j];
