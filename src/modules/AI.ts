@@ -120,23 +120,24 @@ export default class AI {
                     return zobrist.get(lastMove[0], lastMove[1], Color.WHITE);
                 }
             }
+
             let {
                 max: blackMax,
                 total: blackTotal,
                 killItems: blackKillItems
             } = scoreComputer.getTotalScore(Color.BLACK);
-            let {
-                max: whiteMax,
-                total: whiteTotal,
-                killItems: whiteKillItems
-            } = scoreComputer.getTotalScore(Color.WHITE);
-
             if (blackMax.type >= ChessType.DEAD_FOUR) {
                 // 黑子先手有四连的，必赢
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.degradeCandidates![0];
                 return result;
             }
+
+            let {
+                max: whiteMax,
+                total: whiteTotal,
+                killItems: whiteKillItems
+            } = scoreComputer.getTotalScore(Color.WHITE);
             if (whiteMax.type === ChessType.ALIVE_FOUR) {
                 // 白子有活四，黑子无四连，则必输
                 result.value = Score.BLACK_LOSE;
@@ -348,21 +349,21 @@ export default class AI {
             }
 
             let {
-                max: blackMax,
-                total: blackTotal,
-                killItems: blackKillItems
-            } = scoreComputer.getTotalScore(Color.BLACK);
-            let {
                 max: whiteMax,
                 total: whiteTotal,
                 killItems: whiteKillItems
             } = scoreComputer.getTotalScore(Color.WHITE);
-
             if (whiteMax.type >= ChessType.DEAD_FOUR) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.degradeCandidates![0];
                 return result;
             }
+            
+            let {
+                max: blackMax,
+                total: blackTotal,
+                killItems: blackKillItems
+            } = scoreComputer.getTotalScore(Color.BLACK);
             if (blackMax.type === ChessType.ALIVE_FOUR) {
                 result.value = Score.BLACK_WIN;
                 result.bestMove = blackMax.degradeCandidates![0];
@@ -708,7 +709,7 @@ export default class AI {
     private unionPoints({
         itemGroup,
         point,
-        useUpgradeCandidates: useKeyCandidates
+        useUpgradeCandidates
     }: {
         itemGroup: BookkeepingItem[][],
         point?: number[],
@@ -719,13 +720,13 @@ export default class AI {
         if (point) {
             this.checkPoint(point, exists, points);
         }
+        useUpgradeCandidates && useUpgradeCandidates.forEach(item => {
+            item.upgradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
+        });
         itemGroup.forEach(items => {
             items.forEach(item => {
                 item.degradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
             });
-        });
-        useKeyCandidates && useKeyCandidates.forEach(item => {
-            item.upgradeCandidates!.forEach(p => this.checkPoint(p, exists, points));
         });
         return points;
     }
