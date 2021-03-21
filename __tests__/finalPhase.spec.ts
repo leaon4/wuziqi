@@ -4,7 +4,7 @@ import TestUtil from "./testUtils";
 const util = new TestUtil(2, 5, 8);
 const { board, ai } = util;
 
-describe("残局，来源于欢乐五子棋", () => {
+describe("残局，自研", () => {
     test('对方（黑）有双三，但已方（白）能获胜', () => {
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -27,6 +27,9 @@ describe("残局，来源于欢乐五子棋", () => {
         expect(res.value).toBe(Score.BLACK_LOSE);
         expect(res.bestMove).toEqual([7, 4]);
     });
+});
+
+describe("残局，来源于欢乐五子棋", () => {
     test("round 1", () => {
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

@@ -73,7 +73,7 @@ export default class Board {
      * 在假设性落子阶段调用
      * 以栈的方式记录candidatesMap，以便能快速恢复
      */
-    setCandidatesFack(y: number, x: number, candidatesMap: boolean[][]): void {
+    setCandidatesFake(y: number, x: number, candidatesMap: boolean[][]): void {
         this._setCandidates(y, x, (key: number, value: boolean) => {
             candidatesMap[key].push(value);
         });

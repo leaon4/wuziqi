@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 3,
-        public KILL_DEPTH = 8,
+        public MAX_DEPTH = 5,
+        public KILL_DEPTH = 5,
         public zobristOpen = false
     ) {
         this.reset();
@@ -270,6 +270,9 @@ export default class AI {
                 // 白会有冲四           除非自己更快，否则几乎是和死四一样的必防等级，因此分值+死四*0.8。
                 // 白会有双活三         无法定输赢，分值+10**4*3（多加3个活二）
 
+                // 此种评分有个缺陷，例如：当一方有活三，然而对方在堵这一方时，还能形成他的活三的情况。
+                // 这种情况使这个活三价值大减
+
                 blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
                 whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
                 blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
@@ -300,6 +303,7 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.go(y, x, Color.BLACK);
                 }
+                // tothink:这个判断是否可以省略？
                 if (maxType === ChessType.FIVE) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = [y, x];
@@ -310,7 +314,7 @@ export default class AI {
                     }
                     return result;
                 }
-                board.setCandidatesFack(y, x, obj);
+                board.setCandidatesFake(y, x, obj);
                 let res = whiteThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
@@ -529,7 +533,7 @@ export default class AI {
                     }
                     return result;
                 }
-                board.setCandidatesFack(y, x, obj);
+                board.setCandidatesFake(y, x, obj);
                 let res = blackThink(depth + 1, [y, x], result.value, obj, path);
                 path.pop();
                 board.restore(y, x);
