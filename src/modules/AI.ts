@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 1,
-        public KILL_DEPTH = 1,
+        public MAX_DEPTH = 6,
+        public KILL_DEPTH = 6,
         public zobristOpen = false
     ) {
         this.reset();
@@ -175,7 +175,7 @@ export default class AI {
                 return result;
             } else {
                 // 先检查有无冲四的可能
-                blackRushFourPoint = that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
+                [blackRushFourPoint] = that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
                 if (blackRushFourPoint.length) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackRushFourPoint;
@@ -213,18 +213,17 @@ export default class AI {
                     });
                 } else if (whiteMax.type === ChessType.DEAD_THREE) {
                     // 检查白子有无冲四的可能
-                    whiteRushFourPoint = that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                    let items: BookkeepingItem[];
+                    [whiteRushFourPoint, items] = that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
                     if (whiteRushFourPoint.length) {
                         // 如果有，黑子只能走自己的死三或堵
                         // 堵不一定非要堵whiteRushFourPoint，只要把任意一个位置堵了，仍有机会
-                        // 但一定要去堵造成whiteRushFourPoint的两个code，这里偷懒省略了
-                        // 将所有堵点全放了进去
+                        // 但一定要去堵造成whiteRushFourPoint的两个code
                         killPoints = that.unionPoints({
                             point: whiteRushFourPoint,
                             itemGroup: [
                                 blackKillItems[ChessType.DEAD_THREE],
-                                whiteKillItems[ChessType.DEAD_THREE],
-                                whiteKillItems[ChessType.ALIVE_TWO]
+                                items
                             ]
                         });
                     }
@@ -274,8 +273,8 @@ export default class AI {
                 // 此种评分有个缺陷，例如：当一方有活三，然而对方在堵这一方时，还能形成他的活三的情况。
                 // 这种情况使这个活三价值大减
 
-                blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
-                whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK)[0];
+                whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE)[0];
                 blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
                 whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
 
@@ -407,7 +406,7 @@ export default class AI {
                 result.bestMove = whiteMax.upgradeCandidates![0];
                 return result;
             } else {
-                whiteRushFourPoint = that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                [whiteRushFourPoint] = that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
                 if (whiteRushFourPoint.length) {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteRushFourPoint;
@@ -438,14 +437,14 @@ export default class AI {
                         itemGroup
                     });
                 } else if (blackMax.type === ChessType.DEAD_THREE) {
-                    blackRushFourPoint = that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
+                    let items: BookkeepingItem[];
+                    [blackRushFourPoint, items] = that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
                     if (blackRushFourPoint.length) {
                         killPoints = that.unionPoints({
                             point: blackRushFourPoint,
                             itemGroup: [
                                 whiteKillItems[ChessType.DEAD_THREE],
-                                blackKillItems[ChessType.DEAD_THREE],
-                                blackKillItems[ChessType.ALIVE_TWO]
+                                items
                             ]
                         });
                     }
@@ -474,8 +473,8 @@ export default class AI {
             }
 
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
-                blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
-                whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
+                blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK)[0];
+                whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE)[0];
                 blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
                 whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
 
@@ -556,9 +555,9 @@ export default class AI {
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
         color: Color
-    ): number[] {
+    ): [number[], BookkeepingItem[]] {
         if (max.type !== ChessType.DEAD_THREE) {
-            return [];
+            return [[], []];
         }
         let deadThreeItems = killItems[ChessType.DEAD_THREE];
         let uniqObj: Record<number, BookkeepingItem> = {};
@@ -569,7 +568,7 @@ export default class AI {
                 let key = candidate[0] * 15 + candidate[1];
                 if (uniqObj[key]) {
                     // 有两个死三形成的冲四
-                    return candidate;
+                    return [candidate, [uniqObj[key], item]];
                 }
                 uniqObj[key] = item;
             }
@@ -577,7 +576,7 @@ export default class AI {
 
         let aliveTwoItems = killItems[ChessType.ALIVE_TWO];
         if (!aliveTwoItems.length) {
-            return [];
+            return [[], []];
         }
 
         const { board, scoreComputer } = this;
@@ -597,12 +596,12 @@ export default class AI {
                         anotherPoint = uniqObj[key].degradeCandidates![1];
                     }
                     if (checkAnotherPoint(anotherPoint[0], anotherPoint[1], oppsiteColor)) {
-                        return p2;
+                        return [p2, [uniqObj[key], a2]];
                     }
                 }
             }
         }
-        return [];
+        return [[], []];
 
         // 这个检查另一个点是否会让对方形成死四的的方法，冗余量很大
         // 但因为冲四本来就是不常见的，因此应该也不会太耗性能，所以就这样吧
