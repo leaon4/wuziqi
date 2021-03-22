@@ -301,20 +301,9 @@ export default class AI {
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
-                let maxType = scoreComputer.downChessFake(y, x, Color.BLACK);
+                scoreComputer.downChessFake(y, x, Color.BLACK);
                 if (that.zobristOpen) {
                     zobrist.go(y, x, Color.BLACK);
-                }
-                // tothink:这个判断是否可以省略？
-                if (maxType === ChessType.FIVE) {
-                    result.value = Score.BLACK_WIN;
-                    result.bestMove = [y, x];
-                    board.restore(y, x);
-                    scoreComputer.restore();
-                    if (that.zobristOpen) {
-                        zobrist.back(y, x, Color.BLACK);
-                    }
-                    return result;
                 }
                 board.setCandidatesFake(y, x, obj);
                 let res = whiteThink(depth + 1, [y, x], result.value, obj, path);
@@ -522,19 +511,9 @@ export default class AI {
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
-                let maxType = scoreComputer.downChessFake(y, x, Color.WHITE);
+                scoreComputer.downChessFake(y, x, Color.WHITE);
                 if (that.zobristOpen) {
                     zobrist.go(y, x, Color.WHITE);
-                }
-                if (maxType === ChessType.FIVE) {
-                    result.value = Score.BLACK_LOSE;
-                    result.bestMove = [y, x];
-                    board.restore(y, x);
-                    scoreComputer.restore();
-                    if (that.zobristOpen) {
-                        zobrist.back(y, x, Color.WHITE);
-                    }
-                    return result;
                 }
                 board.setCandidatesFake(y, x, obj);
                 let res = blackThink(depth + 1, [y, x], result.value, obj, path);
