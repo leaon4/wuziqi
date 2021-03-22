@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 5,
-        public KILL_DEPTH = 5,
+        public MAX_DEPTH = 6,
+        public KILL_DEPTH = 6,
         public zobristOpen = false
     ) {
         this.reset();
@@ -187,7 +187,12 @@ export default class AI {
                         // todo 伪活三（code为奇怪的双活三）这里已经赢了。但平时这种情况应该是不会出现的
                         console.error('whiteMax.candidates is empty')
                     }
-                    if (that.alreadyHasDoubleThree(whiteMax, whiteKillItems)) {
+                    let key = that.alreadyHasDoubleThree(whiteMax, whiteKillItems);
+                    let point;
+                    let itemGroup = [
+                        blackKillItems[ChessType.DEAD_THREE]
+                    ];
+                    if (key === -2) {
                         // 白子有双活三时，黑子若无死三，必输
                         // 有死三时，也只能走死三去拼杀
                         if (blackMax.type < ChessType.DEAD_THREE) {
@@ -196,20 +201,17 @@ export default class AI {
                             result.bestMove = whiteMax.degradeCandidates![0];
                             return result;
                         }
-                        killPoints = that.unionPoints({
-                            itemGroup: [
-                                blackKillItems[ChessType.DEAD_THREE]
-                            ]
-                        });
-                    } else {
+                    } else if (key === -1) {
                         // 白子只有一个活三，黑子只能走自己的死三或堵
-                        killPoints = that.unionPoints({
-                            itemGroup: [
-                                blackKillItems[ChessType.DEAD_THREE],
-                                whiteKillItems[ChessType.ALIVE_THREE]
-                            ]
-                        });
+                        itemGroup.push(whiteKillItems[ChessType.ALIVE_THREE]);
+                    } else {
+                        // 白子有双活三，但能被一个子同时堵住
+                        point = [~~(key / 15), key % 15];
                     }
+                    killPoints = that.unionPoints({
+                        point,
+                        itemGroup
+                    });
                 } else if (whiteMax.type === ChessType.DEAD_THREE) {
                     // 检查白子有无冲四的可能
                     whiteRushFourPoint = that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE);
@@ -427,25 +429,26 @@ export default class AI {
                     if (!blackMax.degradeCandidates) {
                         console.error('blackMax.candidates is empty')
                     }
-                    if (that.alreadyHasDoubleThree(blackMax, blackKillItems)) {
+                    let key = that.alreadyHasDoubleThree(blackMax, blackKillItems);
+                    let point;
+                    let itemGroup = [
+                        whiteKillItems[ChessType.DEAD_THREE]
+                    ];
+                    if (key === -2) {
                         if (whiteMax.type < ChessType.DEAD_THREE) {
                             result.value = Score.BLACK_WIN;
                             result.bestMove = blackMax.degradeCandidates![0];
                             return result;
                         }
-                        killPoints = that.unionPoints({
-                            itemGroup: [
-                                whiteKillItems[ChessType.DEAD_THREE]
-                            ]
-                        });
+                    } else if (key === -1) {
+                        itemGroup.push(blackKillItems[ChessType.ALIVE_THREE]);
                     } else {
-                        killPoints = that.unionPoints({
-                            itemGroup: [
-                                whiteKillItems[ChessType.DEAD_THREE],
-                                blackKillItems[ChessType.ALIVE_THREE]
-                            ],
-                        });
+                        point = [~~(key / 15), key % 15];
                     }
+                    killPoints = that.unionPoints({
+                        point,
+                        itemGroup
+                    });
                 } else if (blackMax.type === ChessType.DEAD_THREE) {
                     blackRushFourPoint = that.checkRushFour(blackMax, blackKillItems, Color.BLACK);
                     if (blackRushFourPoint.length) {
@@ -698,23 +701,26 @@ export default class AI {
         return false;
     }
     /**
+     * 返回值：-2代表是双活三，-1代表不是双活三，其他（>=0）代表是双活三，但能被一个点同时堵上。
+     * 返回值即是这个点的key
+     * 
      * 判定方法：活三数量要不少于2个，
-     * 并且不能被一个子全堵上（即杀点不能重合），为true。
+     * 并且不能被一个子全堵上（即杀点不能重合），为-2。
      * 对方有没有死三可破的问题这里不管。
-     * 算法：前两个活三code的堵点存哈希，如果没有发现重合，则返回true
+     * 算法：前两个活三code的堵点存哈希，如果没有发现重合，则返回-2
      * 如果发现重合，记录此点，继续遍历后续的活三。如果后续只要有一个活三，
-     * 所有堵点都不与这个堵点重合，则返回true
+     * 所有堵点都不与这个堵点重合，则返回-2
      */
     private alreadyHasDoubleThree(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
-    ): boolean {
+    ): number {
         if (max.type < ChessType.ALIVE_THREE) {
-            return false;
+            return -1;
         }
         let aliveThreeItems = killItems[ChessType.ALIVE_THREE];
         if (aliveThreeItems.length < 2) {
-            return false;
+            return -1;
         }
         let uniqObj: Rec = {};
         let sameDefendPoint = -1;
@@ -732,15 +738,15 @@ export default class AI {
             }
         }
         if (sameDefendPoint < 0) {
-            return true;
+            return -2;
         }
         for (let i = 2; i < aliveThreeItems.length; i++) {
             let a3i = aliveThreeItems[i];
             if (a3i.degradeCandidates!.every(p => (p[0] * 15 + p[1]) !== sameDefendPoint)) {
-                return true;
+                return -2;
             }
         }
-        return false;
+        return sameDefendPoint;
     }
     private getToTraversePoints(
         killPoints: number[][],
