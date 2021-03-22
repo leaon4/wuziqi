@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 6,
-        public KILL_DEPTH = 6,
+        public MAX_DEPTH = 1,
+        public KILL_DEPTH = 1,
         public zobristOpen = false
     ) {
         this.reset();
@@ -152,23 +152,22 @@ export default class AI {
             let killPoints: number[][] = [];
             if (whiteMax.type === ChessType.DEAD_FOUR) {
                 // 白已有冲四，除非黑有既能堵死四，又趁机形成自己的死四或活四的棋，否则输。
-                // todo 偷懒省略了"既能堵死四，又能趁机形成自己的死四或活四"
-                // 而简单以blackMax.type < ChessType.DEAD_THREE来判断了
-                if (blackMax.type < ChessType.DEAD_THREE
-                    && that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE)) {
+                // -2已经是无法防御的冲四了
+                let key = that.alreadyHasRushFour(whiteMax, whiteKillItems, Color.WHITE, blackMax);
+                if (key === -2) {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteMax.degradeCandidates![0];
                     return result;
-                }
+                } else {
+                    // 快速退出
+                    if (depth === 0) {
+                        result.bestMove = whiteMax.degradeCandidates![0];
+                        return result;
+                    }
 
-                // 快速退出
-                if (depth === 0) {
-                    result.bestMove = whiteMax.degradeCandidates![0];
-                    return result;
+                    // 白子有死四，这时只能先阻挡
+                    killPoints = whiteMax.degradeCandidates!;
                 }
-
-                // 白子有死四，这时只能先阻挡
-                killPoints = whiteMax.degradeCandidates!;
             } else if (blackMax.type === ChessType.ALIVE_THREE) {
                 // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
                 result.value = Score.BLACK_WIN;
@@ -391,18 +390,18 @@ export default class AI {
             let killPoints: number[][] = [];
 
             if (blackMax.type === ChessType.DEAD_FOUR) {
-                if (whiteMax.type < ChessType.DEAD_THREE
-                    && that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK)) {
+                let key = that.alreadyHasRushFour(blackMax, blackKillItems, Color.BLACK, whiteMax);
+                if (key === -2) {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackMax.degradeCandidates![0];
                     return result;
+                } else {
+                    if (depth === 0) {
+                        result.bestMove = blackMax.degradeCandidates![0];
+                        return result;
+                    }
+                    killPoints = blackMax.degradeCandidates!;
                 }
-                // 快速退出
-                if (depth === 0) {
-                    result.bestMove = blackMax.degradeCandidates![0];
-                    return result;
-                }
-                killPoints = blackMax.degradeCandidates!;
             } else if (whiteMax.type === ChessType.ALIVE_THREE) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.upgradeCandidates![0];
@@ -647,19 +646,21 @@ export default class AI {
     /**
      * 判定方法：只要有双死四，死四活三存在，
      * 并且不能被一个子全堵上（即杀点不能重合），为true;
+     * -1:非冲四, -2:是纯正的冲四，比如双死四的冲四, 或不能被对方形成四连的冲四
      */
     private alreadyHasRushFour(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
-        color: Color
-    ): boolean {
+        color: Color,
+        otherMax: BookkeepingItem
+    ): number {
         if (max.type < ChessType.DEAD_FOUR) {
-            return false;
+            return -1;
         }
         let deadFourItems = killItems[ChessType.DEAD_FOUR];
         let aliveThreeItems = killItems[ChessType.ALIVE_THREE];
         if (deadFourItems.length + aliveThreeItems.length < 2) {
-            return false;
+            return -1;
         }
         let uniqObj: Rec = {};
         for (let i = 0; i < deadFourItems.length; i++) {
@@ -667,17 +668,37 @@ export default class AI {
             let [y, x] = d4i.degradeCandidates![0]
             let key = y * 15 + x;
             if (!uniqObj[key] && i > 0) {
-                return true;
+                return -2;
             }
             uniqObj[key] = true;
+        }
+        if (!aliveThreeItems.length) {
+            return -1;
+        }
+        const { board, scoreComputer } = this;
+        if (otherMax.type >= ChessType.DEAD_THREE) {
+            let [y, x] = max.degradeCandidates![0];
+            let oppsiteColor = 3 - color;
+            let canNotMakeFour = checkAnotherPoint(y, x, oppsiteColor);
+            if (!canNotMakeFour) {
+                return -1;
+            }
         }
         for (let i = 0; i < aliveThreeItems.length; i++) {
             let a3i = aliveThreeItems[i];
             if (a3i.degradeCandidates!.every(p => !uniqObj[p[0] * 15 + p[1]])) {
-                return true;
+                return -2;
             }
         }
-        return false;
+        return -1;
+
+        function checkAnotherPoint(y: number, x: number, color: Color) {
+            board.downChess(y, x, color);
+            let maxType = scoreComputer.downChessFake(y, x, color);
+            board.restore(y, x);
+            scoreComputer.restore();
+            return maxType < ChessType.DEAD_FOUR;
+        }
     }
     /**
      * 返回值：-2代表是双活三，-1代表不是双活三，其他（>=0）代表是双活三，但能被一个点同时堵上。
