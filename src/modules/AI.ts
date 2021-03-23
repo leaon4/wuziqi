@@ -231,7 +231,7 @@ export default class AI {
                     // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
                     // 因此先只考虑白子没有死三时的双三情况（此处else就是了）
                     if (blackKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        blackDoubleThreePoint = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
+                        [blackDoubleThreePoint] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
                         if (blackDoubleThreePoint.length) {
                             result.value = Score.BLACK_WIN;
                             result.bestMove = blackDoubleThreePoint;
@@ -239,16 +239,16 @@ export default class AI {
                         }
                     }
 
-                    // 同理，如果黑子没有死三，白子死三，能下的点只有黑子的活二和堵。
+                    // 同理，如果黑子没有死三，白子会有活三，能下的点只有黑子的活二和堵。
                     // 但如果有死三，情况很复杂，活一、死二也是能下的，因此排除这种情况。
-                    // todo 这里偷了懒，堵的点不精确，笼统的把白子活二堵点全部拿进去了
                     if (blackMax.type < ChessType.DEAD_THREE) {
-                        whiteDoubleThreePoint = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                        let items: BookkeepingItem[];
+                        [whiteDoubleThreePoint, items] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
                         if (whiteDoubleThreePoint.length) {
                             killPoints = that.unionPoints({
                                 point: whiteDoubleThreePoint,
                                 itemGroup: [
-                                    whiteKillItems[ChessType.ALIVE_TWO]
+                                    items
                                 ],
                                 useUpgradeCandidates: blackKillItems[ChessType.ALIVE_TWO],
                             });
@@ -275,8 +275,8 @@ export default class AI {
 
                 blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK)[0];
                 whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE)[0];
-                blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
-                whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK)[0];
+                whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE)[0];
 
                 if (blackRushFourPoint.length) {
                     blackTotal += 10 ** 6 / 2;
@@ -450,7 +450,7 @@ export default class AI {
                     }
                 } else {
                     if (whiteKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        whiteDoubleThreePoint = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                        [whiteDoubleThreePoint] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
                         if (whiteDoubleThreePoint.length) {
                             result.value = Score.BLACK_LOSE;
                             result.bestMove = whiteDoubleThreePoint;
@@ -458,12 +458,13 @@ export default class AI {
                         }
                     }
                     if (whiteMax.type < ChessType.DEAD_THREE) {
-                        blackDoubleThreePoint = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
+                        let items: BookkeepingItem[];
+                        [blackDoubleThreePoint, items] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
                         if (blackDoubleThreePoint.length) {
                             killPoints = that.unionPoints({
                                 point: blackDoubleThreePoint,
                                 itemGroup: [
-                                    blackKillItems[ChessType.ALIVE_TWO]
+                                    items
                                 ],
                                 useUpgradeCandidates: whiteKillItems[ChessType.ALIVE_TWO],
                             });
@@ -475,8 +476,8 @@ export default class AI {
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
                 blackRushFourPoint = blackRushFourPoint || that.checkRushFour(blackMax, blackKillItems, Color.BLACK)[0];
                 whiteRushFourPoint = whiteRushFourPoint || that.checkRushFour(whiteMax, whiteKillItems, Color.WHITE)[0];
-                blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
-                whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                blackDoubleThreePoint = blackDoubleThreePoint || that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK)[0];
+                whiteDoubleThreePoint = whiteDoubleThreePoint || that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE)[0];
 
                 if (whiteRushFourPoint.length) {
                     whiteTotal += 10 ** 6 / 2;
@@ -551,6 +552,9 @@ export default class AI {
             return result;
         }
     }
+    /**
+     * 返回值第一个为堵点，第二个为形成冲四的两个items
+     */
     private checkRushFour(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
@@ -613,34 +617,36 @@ export default class AI {
             return maxType < ChessType.DEAD_FOUR;
         }
     }
+    /**
+     * 要在对方没有死三时使用才准确
+     */
     // todo?:冲四和双三是可以放在一起判断的，可减少对活二点的遍历次数
     private checkDoubleThree(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
         color: Color
-    ): number[] {
-        // 这里用小于，因为max.type有可能为DEAD_THREE，仍有可能是双三。
+    ): [number[], BookkeepingItem[]] {
         if (max.type < ChessType.ALIVE_TWO) {
-            return [];
+            return [[], []];
         }
         let aliveTwoItems = killItems[ChessType.ALIVE_TWO];
         if (aliveTwoItems.length > 1) {
-            let uniqObj: Rec = {};
+            let uniqObj: Record<number, BookkeepingItem> = {};
             for (let i = 0; i < aliveTwoItems.length; i++) {
                 let item = aliveTwoItems[i];
                 for (let j = 0; j < item.upgradeCandidates!.length; j++) {
                     let candidate = item.upgradeCandidates![j];
                     let key = candidate[0] * 15 + candidate[1];
                     if (uniqObj[key]) {
-                        return candidate;
+                        return [candidate, [uniqObj[key], item]];
                     }
-                    // 不像hasRushFour一样，忽略了对另一个点的检验。但因为别的地方对双三也做了
-                    // 很保守而安全的判定，因此也没有问题。
-                    uniqObj[key] = true;
+                    // 不像hasRushFour一样，忽略了对另一个点的检验。但因为使用方会保证对方没有死三
+                    // 因此也没有问题。
+                    uniqObj[key] = item;
                 }
             }
         }
-        return [];
+        return [[], []];
     }
     /**
      * 判定方法：只要有双死四，死四活三存在，
