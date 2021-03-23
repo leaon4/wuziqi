@@ -583,7 +583,6 @@ export default class AI {
             return [[], []];
         }
 
-        const { board, scoreComputer } = this;
         let oppsiteColor = 3 - color;
 
         for (let j = 0; j < aliveTwoItems.length; j++) {
@@ -599,28 +598,29 @@ export default class AI {
                     if (anotherPoint[0] * 15 + anotherPoint[1] === key) {
                         anotherPoint = uniqObj[key].degradeCandidates![1];
                     }
-                    if (checkAnotherPoint(anotherPoint[0], anotherPoint[1], oppsiteColor)) {
+                    if (this.checkAnotherPoint(anotherPoint[0], anotherPoint[1], oppsiteColor)) {
                         return [p2, [uniqObj[key], a2]];
                     }
                 }
             }
         }
         return [[], []];
-
-        // 这个检查另一个点是否会让对方形成死四的的方法，冗余量很大
-        // 但因为冲四本来就是不常见的，因此应该也不会太耗性能，所以就这样吧
-        function checkAnotherPoint(y: number, x: number, color: Color) {
-            board.downChess(y, x, color);
-            let maxType = scoreComputer.downChessFake(y, x, color);
-            board.restore(y, x);
-            scoreComputer.restore();
-            return maxType < ChessType.DEAD_FOUR;
-        }
+    }
+    /**
+     * 这个检查另一个点是否会让对方形成死四的的方法，冗余量很大
+     * 但因为冲四本来就是不常见的，因此应该也不会太耗性能，所以就这样吧
+     */
+    private checkAnotherPoint(y: number, x: number, color: Color) {
+        const { board, scoreComputer } = this;
+        board.downChess(y, x, color);
+        let maxType = scoreComputer.downChessFake(y, x, color);
+        board.restore(y, x);
+        scoreComputer.restore();
+        return maxType < ChessType.DEAD_FOUR;
     }
     /**
      * 要在对方没有死三时使用才准确
      */
-    // todo?:冲四和双三是可以放在一起判断的，可减少对活二点的遍历次数
     private checkDoubleThree(
         max: BookkeepingItem,
         killItems: Record<number, BookkeepingItem[]>,
@@ -680,11 +680,10 @@ export default class AI {
         if (!aliveThreeItems.length) {
             return -1;
         }
-        const { board, scoreComputer } = this;
         if (otherMax.type >= ChessType.DEAD_THREE) {
             let [y, x] = max.degradeCandidates![0];
             let oppsiteColor = 3 - color;
-            let canNotMakeFour = checkAnotherPoint(y, x, oppsiteColor);
+            let canNotMakeFour = this.checkAnotherPoint(y, x, oppsiteColor);
             if (!canNotMakeFour) {
                 return -1;
             }
@@ -696,14 +695,6 @@ export default class AI {
             }
         }
         return -1;
-
-        function checkAnotherPoint(y: number, x: number, color: Color) {
-            board.downChess(y, x, color);
-            let maxType = scoreComputer.downChessFake(y, x, color);
-            board.restore(y, x);
-            scoreComputer.restore();
-            return maxType < ChessType.DEAD_FOUR;
-        }
     }
     /**
      * 返回值：-2代表是双活三，-1代表不是双活三，其他（>=0）代表是双活三，但能被一个点同时堵上。
