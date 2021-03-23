@@ -158,16 +158,16 @@ export default class AI {
                     result.value = Score.BLACK_LOSE;
                     result.bestMove = whiteMax.degradeCandidates![0];
                     return result;
-                } else {
-                    // 快速退出
-                    if (depth === 0) {
-                        result.bestMove = whiteMax.degradeCandidates![0];
-                        return result;
-                    }
-
-                    // 白子有死四，这时只能先阻挡
-                    killPoints = whiteMax.degradeCandidates!;
                 }
+
+                // 快速退出
+                if (depth === 0) {
+                    result.bestMove = whiteMax.degradeCandidates![0];
+                    return result;
+                }
+
+                // 白子有死四，这时只能先阻挡
+                killPoints = whiteMax.degradeCandidates!;
             } else if (blackMax.type === ChessType.ALIVE_THREE) {
                 // 黑子活三，且黑子先走，且白子已经没有死四，黑子必赢
                 result.value = Score.BLACK_WIN;
@@ -230,29 +230,26 @@ export default class AI {
                 } else {
                     // 只有白子没有死三时，黑子双三才必赢，否则只能在全量计算中优先计算。
                     // 因此先只考虑白子没有死三时的双三情况（此处else就是了）
-                    if (blackKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        [blackDoubleThreePoint] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
-                        if (blackDoubleThreePoint.length) {
-                            result.value = Score.BLACK_WIN;
-                            result.bestMove = blackDoubleThreePoint;
-                            return result;
-                        }
+                    [blackDoubleThreePoint] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
+                    if (blackDoubleThreePoint.length) {
+                        result.value = Score.BLACK_WIN;
+                        result.bestMove = blackDoubleThreePoint;
+                        return result;
                     }
-
-                    // 同理，如果黑子没有死三，白子会有活三，能下的点只有黑子的活二和堵。
-                    // 但如果有死三，情况很复杂，活一、死二也是能下的，因此排除这种情况。
-                    if (blackMax.type < ChessType.DEAD_THREE) {
-                        let items: BookkeepingItem[];
-                        [whiteDoubleThreePoint, items] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
-                        if (whiteDoubleThreePoint.length) {
-                            killPoints = that.unionPoints({
-                                point: whiteDoubleThreePoint,
-                                itemGroup: [
-                                    items
-                                ],
-                                useUpgradeCandidates: blackKillItems[ChessType.ALIVE_TWO],
-                            });
-                        }
+                }
+                // 同理，如果黑子没有死三，白子会有活三，能下的点只有黑子的活二和堵。
+                // 但如果有死三，情况很复杂，活一、死二也是能下的，因此排除这种情况。
+                if (!killPoints.length && blackMax.type < ChessType.DEAD_THREE) {
+                    let items: BookkeepingItem[];
+                    [whiteDoubleThreePoint, items] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                    if (whiteDoubleThreePoint.length) {
+                        killPoints = that.unionPoints({
+                            point: whiteDoubleThreePoint,
+                            itemGroup: [
+                                items
+                            ],
+                            useUpgradeCandidates: blackKillItems[ChessType.ALIVE_TWO],
+                        });
                     }
                 }
             }
@@ -394,13 +391,12 @@ export default class AI {
                     result.value = Score.BLACK_WIN;
                     result.bestMove = blackMax.degradeCandidates![0];
                     return result;
-                } else {
-                    if (depth === 0) {
-                        result.bestMove = blackMax.degradeCandidates![0];
-                        return result;
-                    }
-                    killPoints = blackMax.degradeCandidates!;
                 }
+                if (depth === 0) {
+                    result.bestMove = blackMax.degradeCandidates![0];
+                    return result;
+                }
+                killPoints = blackMax.degradeCandidates!;
             } else if (whiteMax.type === ChessType.ALIVE_THREE) {
                 result.value = Score.BLACK_LOSE;
                 result.bestMove = whiteMax.upgradeCandidates![0];
@@ -449,26 +445,24 @@ export default class AI {
                         });
                     }
                 } else {
-                    if (whiteKillItems[ChessType.ALIVE_TWO].length > 1) {
-                        [whiteDoubleThreePoint] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
-                        if (whiteDoubleThreePoint.length) {
-                            result.value = Score.BLACK_LOSE;
-                            result.bestMove = whiteDoubleThreePoint;
-                            return result;
-                        }
+                    [whiteDoubleThreePoint] = that.checkDoubleThree(whiteMax, whiteKillItems, Color.WHITE);
+                    if (whiteDoubleThreePoint.length) {
+                        result.value = Score.BLACK_LOSE;
+                        result.bestMove = whiteDoubleThreePoint;
+                        return result;
                     }
-                    if (whiteMax.type < ChessType.DEAD_THREE) {
-                        let items: BookkeepingItem[];
-                        [blackDoubleThreePoint, items] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
-                        if (blackDoubleThreePoint.length) {
-                            killPoints = that.unionPoints({
-                                point: blackDoubleThreePoint,
-                                itemGroup: [
-                                    items
-                                ],
-                                useUpgradeCandidates: whiteKillItems[ChessType.ALIVE_TWO],
-                            });
-                        }
+                }
+                if (!killPoints.length && whiteMax.type < ChessType.DEAD_THREE) {
+                    let items: BookkeepingItem[];
+                    [blackDoubleThreePoint, items] = that.checkDoubleThree(blackMax, blackKillItems, Color.BLACK);
+                    if (blackDoubleThreePoint.length) {
+                        killPoints = that.unionPoints({
+                            point: blackDoubleThreePoint,
+                            itemGroup: [
+                                items
+                            ],
+                            useUpgradeCandidates: whiteKillItems[ChessType.ALIVE_TWO],
+                        });
                     }
                 }
             }
@@ -560,7 +554,8 @@ export default class AI {
         killItems: Record<number, BookkeepingItem[]>,
         color: Color
     ): [number[], BookkeepingItem[]] {
-        if (max.type !== ChessType.DEAD_THREE) {
+        if (max.type !== ChessType.DEAD_THREE
+            || killItems[ChessType.DEAD_THREE].length + killItems[ChessType.ALIVE_TWO].length < 2) {
             return [[], []];
         }
         let deadThreeItems = killItems[ChessType.DEAD_THREE];
@@ -626,7 +621,7 @@ export default class AI {
         killItems: Record<number, BookkeepingItem[]>,
         color: Color
     ): [number[], BookkeepingItem[]] {
-        if (max.type < ChessType.ALIVE_TWO) {
+        if (max.type < ChessType.ALIVE_TWO || killItems[ChessType.ALIVE_TWO].length < 2) {
             return [[], []];
         }
         let aliveTwoItems = killItems[ChessType.ALIVE_TWO];

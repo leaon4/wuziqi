@@ -151,7 +151,8 @@ export default class ScoreComputer {
                     log.type = score.type;
                     log.count = 1;
                 } else if (score.level === log.level) {
-                    // tothink 以type还是value来比较?
+                    // 以type还是value来比较?
+                    // 应该以value，因为value大的，type一定不小
                     if (score.type > log.type || score.value > log.value) {
                         log.type = score.type;
                         log.value = score.value;
