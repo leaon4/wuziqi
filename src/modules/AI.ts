@@ -16,8 +16,8 @@ export default class AI {
     constructor(
         public board: Board,
         public scoreComputer: ScoreComputer,
-        public MAX_DEPTH = 6,
-        public KILL_DEPTH = 6,
+        public MAX_DEPTH = 5,
+        public KILL_DEPTH = 5,
         public zobristOpen = false
     ) {
         this.reset();
@@ -103,7 +103,7 @@ export default class AI {
             }
         }
 
-        function blackThink(depth: number, lastMove: number[], beta: number, obj: boolean[][], path: string[]): Result {
+        function blackThink(depth: number, lastMove: number[], beta: number, candidatesMap: boolean[][], path: string[]): Result {
             path.push(lastMove.join(','))
             count++
             let result: Result = {
@@ -292,7 +292,7 @@ export default class AI {
 
             result.value = Score.BLACK_LOSE;
 
-            const toTraversePoints = that.getToTraversePoints(killPoints, obj, blackKillItems, whiteKillItems);
+            const toTraversePoints = that.getToTraversePoints(killPoints, candidatesMap, blackKillItems, whiteKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.BLACK);
@@ -300,12 +300,12 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.go(y, x, Color.BLACK);
                 }
-                board.setCandidatesFake(y, x, obj);
-                let res = whiteThink(depth + 1, [y, x], result.value, obj, path);
+                board.setCandidatesFake(y, x, candidatesMap);
+                let res = whiteThink(depth + 1, [y, x], result.value, candidatesMap, path);
                 path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
-                board.restoreCandidates(y, x, obj);
+                board.restoreCandidates(y, x, candidatesMap);
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.BLACK);
                 }
@@ -317,7 +317,7 @@ export default class AI {
                     result.path = res.path;
                     if (result.value >= beta) {
                         if (depth === 0 && result.value === Score.BLACK_WIN) {
-
+                            console.error('eeeeeeeeeeeeeeeeeeeee')
                         } else {
                             return result;
                         }
@@ -338,7 +338,7 @@ export default class AI {
             }
             return result;
         }
-        function whiteThink(depth: number, lastMove: number[], alpha: number, obj: boolean[][], path: string[]): Result {
+        function whiteThink(depth: number, lastMove: number[], alpha: number, candidatesMap: boolean[][], path: string[]): Result {
             path.push(lastMove.join(','))
             count++
             let result: Result = {
@@ -500,7 +500,7 @@ export default class AI {
 
             result.value = Score.BLACK_WIN;
 
-            const toTraversePoints = that.getToTraversePoints(killPoints, obj, whiteKillItems, blackKillItems);
+            const toTraversePoints = that.getToTraversePoints(killPoints, candidatesMap, whiteKillItems, blackKillItems);
             for (let p of toTraversePoints) {
                 let [y, x] = p;
                 board.downChess(y, x, Color.WHITE);
@@ -508,12 +508,12 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.go(y, x, Color.WHITE);
                 }
-                board.setCandidatesFake(y, x, obj);
-                let res = blackThink(depth + 1, [y, x], result.value, obj, path);
+                board.setCandidatesFake(y, x, candidatesMap);
+                let res = blackThink(depth + 1, [y, x], result.value, candidatesMap, path);
                 path.pop();
                 board.restore(y, x);
                 scoreComputer.restore();
-                board.restoreCandidates(y, x, obj);
+                board.restoreCandidates(y, x, candidatesMap);
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.WHITE);
                 }
@@ -524,7 +524,7 @@ export default class AI {
                     result.path = res.path;
                     if (result.value <= alpha) {
                         if (depth === 0 && result.value === Score.BLACK_LOSE) {
-
+                            console.error('ffffffffffffffff')
                         } else {
                             return result;
                         }
