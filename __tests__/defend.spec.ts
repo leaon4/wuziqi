@@ -320,7 +320,6 @@ describe('防守', () => {
         expect(expectPoints[res.bestMove.join(',')]).toBeTruthy();
     });
     test('对方已有双三，但能被同时堵住，不立即输', () => {
-        // todo这个用例在高depth下ai放弃太快了，不去堵4,8
         util.reset([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],

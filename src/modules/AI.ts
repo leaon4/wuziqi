@@ -215,7 +215,7 @@ export default class AI {
                 }
             }
 
-            // todo 应该再具体区分killPoints，比如如果只有一个的情况
+            // todo 应该再具体区分killPoints，比如如果只有一个的情况(冲四延伸，但冲四延伸必须结合zobrist)
             if (!killPoints.length && depth >= MAX_DEPTH || depth >= KILL_DEPTH) {
                 // 黑已有冲四           赢，和已有死四一样，前面已经退出了，这里不处理。
                 // 黑已有双活三         除非白有死四，否则赢，和已有一个活三威力几乎一样，不用加分。
