@@ -17,7 +17,7 @@ export default class AI {
         public board: Board,
         public scoreComputer: ScoreComputer,
         public MAX_DEPTH = 5,
-        public KILL_DEPTH = 5,
+        public KILL_DEPTH = 12,
         public zobristOpen = false
     ) {
         this.reset();
@@ -60,48 +60,9 @@ export default class AI {
         const result = humanColor === Color.BLACK
             ? whiteThink(0, [y, x], Score.BLACK_LOSE, candidatesMap, [])
             : blackThink(0, [y, x], Score.BLACK_WIN, candidatesMap, []);
-        // const result = findShortestResult();
         board.setCandidates(result.bestMove[0], result.bestMove[1], candidatesMap);
         console.log('count: ', count)
         return result;
-
-        function findShortestResult(): Result {
-            if (humanColor === Color.BLACK) {
-                /* let result = whiteThink(0, [y, x], Score.BLACK_LOSE, candidates, []);
-                if (result.value === Score.BLACK_LOSE) {
-                    result = whiteThink(0, [y, x], Score.BLACK_LOSE - 1, candidates, []);
-                }
-                return result; */
-
-                // 此算法不完美，因为第一次的全深度搜索，仍可能找到最短路径的胜利方法
-                // 有bug，因为killDepth还可能有延伸
-                let lastResult;
-                for (let depth = 0; depth < KILL_DEPTH; depth++) {
-                    const result = whiteThink(depth, [y, x], Score.BLACK_LOSE, candidatesMap, []);
-                    if (result.value !== Score.BLACK_LOSE) {
-                        return lastResult || result;
-                    }
-                    lastResult = result;
-                }
-                return lastResult as Result;
-            } else {
-                /* let result = blackThink(0, [y, x], Score.BLACK_WIN, candidates, []);
-                if (result.value === Score.BLACK_WIN) {
-                    result = blackThink(0, [y, x], Score.BLACK_WIN + 1, candidates, []);
-                }
-                return result; */
-
-                let lastResult;
-                for (let depth = 0; depth < KILL_DEPTH; depth++) {
-                    const result = blackThink(depth, [y, x], Score.BLACK_WIN, candidatesMap, []);
-                    if (result.value !== Score.BLACK_WIN) {
-                        return lastResult || result;
-                    }
-                    lastResult = result;
-                }
-                return lastResult as Result;
-            }
-        }
 
         function blackThink(depth: number, lastMove: number[], beta: number, candidatesMap: boolean[][], path: string[]): Result {
             path.push(lastMove.join(','))
@@ -309,28 +270,28 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.BLACK);
                 }
-                // todo 这个depth没有意义了。只有在非黑赢时，value相等，才会更新，但非赢点的depth更新没有意义
-                if (res.value > result.value || (depth === 0 && res.value === result.value && res.depth < result.depth)) {
-                    result.value = res.value;
-                    result.depth = res.depth;
-                    result.bestMove = [y, x];
-                    result.path = res.path;
-                    if (result.value >= beta) {
-                        if (depth === 0 && result.value === Score.BLACK_WIN) {
-                            console.error('eeeeeeeeeeeeeeeeeeeee')
-                        } else {
+
+                if (res.value === Score.BLACK_WIN) {
+                    // 当找到已方获胜的子时，如果不是depth=0的第一步，那么只需要分，可立即返回
+                    // 若是第一步，那么应该继续寻找路径最短的棋子，不玩人，迅速获胜
+                    if (depth !== 0 || result.value !== Score.BLACK_WIN || res.depth < result.depth) {
+                        setResult(result, res, [y, x]);
+                        if (depth !== 0) {
                             return result;
                         }
                     }
-                } else if (!result.bestMove.length) {
-                    if (res.value === Score.BLACK_LOSE) {
-                        // result.bestMove = res.bestMove;
-                        result.bestMove = [y, x];
-                    } else {
-                        result.bestMove = res.bestMove;
+                } else if (res.value === Score.BLACK_LOSE) {
+                    // 当发现失败时，不会中断，继续寻找下去。
+                    // 可顺便去寻找depth更大的棋，一方面避免bestMove为空的情况
+                    // 一方面，如果是第一步的话，能尽量拖延，而不是轻易放弃
+                    if (result.value === Score.BLACK_LOSE && result.depth < res.depth) {
+                        setResult(result, res, [y, x]);
                     }
-                    result.depth = res.depth;
-                    result.path = res.path;
+                } else if (res.value > result.value) {
+                    setResult(result, res, [y, x]);
+                    if (result.value >= beta) {
+                        return result;
+                    }
                 }
             }
             if (that.zobristOpen) {
@@ -517,33 +478,35 @@ export default class AI {
                 if (that.zobristOpen) {
                     zobrist.back(y, x, Color.WHITE);
                 }
-                if (res.value < result.value || (depth === 0 && res.value === result.value && res.depth < result.depth)) {
-                    result.value = res.value;
-                    result.depth = res.depth;
-                    result.bestMove = [y, x];
-                    result.path = res.path;
-                    if (result.value <= alpha) {
-                        if (depth === 0 && result.value === Score.BLACK_LOSE) {
-                            console.error('ffffffffffffffff')
-                        } else {
+
+                if (res.value === Score.BLACK_LOSE) {
+                    if (depth !== 0 || result.value !== Score.BLACK_LOSE || res.depth < result.depth) {
+                        setResult(result, res, [y, x]);
+                        if (depth !== 0) {
                             return result;
                         }
                     }
-                } else if (!result.bestMove.length) {
-                    if (res.value === Score.BLACK_WIN) {
-                        // result.bestMove = res.bestMove;
-                        result.bestMove = [y, x];
-                    } else {
-                        result.bestMove = res.bestMove;
+                } else if (res.value === Score.BLACK_WIN) {
+                    if (result.value === Score.BLACK_WIN && result.depth < res.depth) {
+                        setResult(result, res, [y, x]);
                     }
-                    result.depth = res.depth;
-                    result.path = res.path;
+                } else if (res.value < result.value) {
+                    setResult(result, res, [y, x]);
+                    if (result.value <= alpha) {
+                        return result;
+                    }
                 }
             }
             if (that.zobristOpen) {
                 zobrist.set(result);
             }
             return result;
+        }
+        function setResult(result: Result, res: Result, point: number[]) {
+            result.value = res.value;
+            result.depth = res.depth;
+            result.bestMove = point;
+            result.path = res.path;
         }
     }
     /**

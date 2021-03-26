@@ -25,7 +25,11 @@ describe("残局，自研", () => {
         ]);
         const res = util.ai.think(-1, -1, Color.BLACK);
         expect(res.value).toBe(Score.BLACK_LOSE);
-        expect(res.bestMove).toEqual([7, 4]);
+        const expectPoints: any = {
+            "7,4": true,
+            "8,4": true,
+        };
+        expect(expectPoints[res.bestMove.join(",")]).toBeTruthy();
     });
 });
 
@@ -104,6 +108,7 @@ describe("残局，来源于欢乐五子棋", () => {
         const res = util.ai.think(-1, -1, Color.WHITE);
         const expectPoints: any = {
             "8,9": true,
+            "9,5": true,
         };
         expect(expectPoints[res.bestMove.join(",")]).toBeTruthy();
         expect(res.value).toBe(Score.BLACK_WIN);
